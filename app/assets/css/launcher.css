@@ -3203,7 +3203,7 @@ input:checked + .toggleSwitchSlider:before {
 /* Maintains maximum width on the status bar. */
 #server_status_wrapper {
     display: inline-flex;
-    width: 75px;
+    width: 90px;
 }
 
 /* Span which displays the player count of the selected server. */
@@ -3941,7 +3941,7 @@ input:checked + .toggleSwitchSlider:before {
 /* Stationary image for the spinner. */
 #loadCenterImage {
     position: absolute;
-    width: 277px;
+    width: 200px;
     height: auto;
 }
 
@@ -3962,7 +3962,23 @@ input:checked + .toggleSwitchSlider:before {
     }
 }
 
+@keyframes zooming {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
 /* Class which is applied when the spinner image is spinning. */
 .rotating {
     animation: rotating 10s linear infinite;
+}
+
+.zooming {
+    animation: zooming 2s infinite;
 }
