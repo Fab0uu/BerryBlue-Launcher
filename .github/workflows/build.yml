@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # Enables manual trigger
+  workflow_dispatch:  # Manual trigger option
 
 jobs:
   build:
@@ -17,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '20'  # Explicitly setting Node.js 20
+          node-version: '20'  # Use Node.js 20 explicitly
 
       - name: Install dependencies
         run: npm install
