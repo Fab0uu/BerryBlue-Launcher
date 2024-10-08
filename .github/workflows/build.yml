@@ -1,32 +1,38 @@
 name: Build
 
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:  # Manual trigger option
+on: push
 
 jobs:
-  build:
-    runs-on: macos-latest
+  release:
+    runs-on: ${{ matrix.os }}
+
+    permissions:
+      contents: write
+
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
 
     steps:
-      - name: Checkout code
+      - name: Check out Git repository
         uses: actions/checkout@v3
 
-      - name: Set up Node.js
+      - name: Set up Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20'  # Use Node.js 20 explicitly
+          node-version: 20
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build Electron App for macOS
-        run: npm run build:mac
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          name: MacOS Build
-          path: dist/
+          python-version: 3.x
+
+      - name: Install Dependencies
+        run: npm ci
+        shell: bash
+
+      - name: Build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+        shell: bash
