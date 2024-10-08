@@ -26,7 +26,7 @@ jobs:
         run: npm run build:mac
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v3  # Updated version
+        uses: actions/upload-artifact@v3  # Updated version to v3
         with:
           name: MacOS Build
           path: dist/
