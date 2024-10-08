@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:  # This enables manual trigger support
+  workflow_dispatch:  # Enables manual trigger
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
         run: npm run build:mac
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3  # Updated version
         with:
           name: MacOS Build
           path: dist/
