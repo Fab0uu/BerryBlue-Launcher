@@ -237,22 +237,88 @@ const refreshMojangStatuses = async function(){
 
 const refreshServerStatus = async (fade = false) => {
     loggerLanding.info('Refreshing Server Status')
-    const serv = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
 
+    const status = 'https://admin.mc.berryblue.fr/assets/mc-data/Server-Data/screen_status.json';
+    const player_count_survie = 'https://admin.mc.berryblue.fr/assets/mc-data/Player-Data/player_count_survie'
+    const player_count_crea = 'https://admin.mc.berryblue.fr/assets/mc-data/Player-Data/player_count_crea'
     let pLabel = Lang.queryJS('landing.serverStatus.server')
     let pVal = Lang.queryJS('landing.serverStatus.offline')
+    let proxyMC = false;
+    let mcCreaMohist = false;
+    let mcSurvie = false;
+    let crea_count = 0;
+    let survie_count = 0;
 
     try {
+        // Récupère le fichier JSON
+        const response = await fetch(status);
 
-        const servStat = await getServerStatus(47, serv.hostname, serv.port)
-        console.log(servStat)
-        pLabel = Lang.queryJS('landing.serverStatus.players')
-        pVal = servStat.players.online + '/' + servStat.players.max
+        // Si la réponse est OK, on analyse le JSON
+        if (response.ok) {
+            const data = await response.json();
 
-    } catch (err) {
-        loggerLanding.warn('Unable to refresh server status, assuming offline.')
-        loggerLanding.debug(err)
+            // Récupération des valeurs pour Proxy-MC, MC-Crea-Mohist, et MC-Survie
+            proxyMC = data["Proxy-MC"] || false;
+            mcCreaMohist = data["MC-Crea-Mohist"] || false;
+            mcSurvie = data["MC-Survie"] || false;
+
+            // Affichage des résultats dans la console (ou utilisation selon tes besoins)
+            console.log("Proxy-MC: ", proxyMC);
+            console.log("MC-Crea-Mohist: ", mcCreaMohist);
+            console.log("MC-Survie: ", mcSurvie);
+
+        } else {
+            console.error('Erreur lors de la récupération du fichier JSON:', response.statusText);
+        }
+
+        try {
+            // Utilisation de fetch pour récupérer le fichier
+            const response = await fetch(player_count_survie);
+    
+            // Si la réponse est OK, on récupère le texte
+            if (response.ok && mcSurvie) {
+                const text = await response.text();
+                survie_count = parseInt(text, 10) || 0;
+                console.log("Contenu du fichier survie:", text);
+    
+            } else {
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
+            }
+        } catch (error) {
+            console.error('Erreur lors de la requête:', error);
+        }
+
+        try {
+            // Utilisation de fetch pour récupérer le fichier
+            const response = await fetch(player_count_crea);
+    
+            // Si la réponse est OK, on récupère le texte
+            if (response.ok && mcCreaMohist) {
+                const text = await response.text();
+                crea_count = parseInt(text, 10) || 0;
+                console.log("Contenu du fichier crea:", text);
+    
+            } else {
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
+            }
+
+        } catch (error) {
+            console.error('Erreur lors de la requête:', error);
+        }
+
+        console.log("crea_count : ", crea_count, ", survie_count : ", survie_count)
+
+        let total_player = crea_count + survie_count
+
+        if (!proxyMC && !mcCreaMohist && !mcSurvie) {
+            let pVal = Lang.queryJS('landing.serverStatus.offline')
+        } else {
+            pVal = total_player  + ' / 500'           
+        }
+    } catch (error) {
+        console.error('Erreur lors de la requête:', error);
     }
+
     if(fade){
         $('#server_status_wrapper').fadeOut(250, () => {
             document.getElementById('landingPlayerLabel').innerHTML = pLabel
@@ -263,7 +329,26 @@ const refreshServerStatus = async (fade = false) => {
         document.getElementById('landingPlayerLabel').innerHTML = pLabel
         document.getElementById('player_count').innerHTML = pVal
     }
-    
+
+    function getColor(input) {
+        return input ? "green" : "red";
+    }
+
+    const tooltipServerHTML = `<div class="ServerStatusContainer">
+        <span class="ServerStatusIcon" style="color: ${getColor(proxyMC)};">&#8226;</span>
+        <span class="ServerStatusName">Proxy</span>
+        </div>
+        <div class="ServerStatusContainer">
+        <span class="ServerStatusIcon" style="color: ${getColor(mcSurvie)};">&#8226;</span>
+        <span class="ServerStatusName">Survie</span>
+        </div>
+        <div class="ServerStatusContainer">
+        <span class="ServerStatusIcon" style="color: ${getColor(mcCreaMohist)};">&#8226;</span>
+        <span class="ServerStatusName">Créatif</span>
+        </div>
+        `
+
+    document.getElementById('serverStatusDetailled').innerHTML = tooltipServerHTML
 }
 
 refreshMojangStatuses()
@@ -272,7 +357,7 @@ refreshMojangStatuses()
 // Refresh statuses every hour. The status page itself refreshes every day so...
 let mojangStatusListener = setInterval(() => refreshMojangStatuses(true), 60*60*1000)
 // Set refresh rate to once every 5 minutes.
-let serverStatusListener = setInterval(() => refreshServerStatus(true), 300000)
+let serverStatusListener = setInterval(() => refreshServerStatus(true), 60000)
 
 /**
  * Shows an error overlay, toggles off the launch area.
