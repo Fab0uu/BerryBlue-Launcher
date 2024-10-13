@@ -1,5 +1,5 @@
-appId: 'berrybluelauncher'
-productName: 'BerryBlue Launcher'
+appId: 'berryblue'
+productName: 'BerryBlue'
 artifactName: '${productName}-setup-${version}.${ext}'
 
 copyright: 'Copyright © 2024 Fabrice Lozach'
