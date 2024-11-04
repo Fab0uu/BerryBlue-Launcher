@@ -243,9 +243,9 @@ const refreshServerStatus = async (fade = false) => {
     const player_count_crea = 'https://admin.mc.berryblue.fr/assets/mc-data/Player-Data/player_count_crea'
     let pLabel = Lang.queryJS('landing.serverStatus.server')
     let pVal = Lang.queryJS('landing.serverStatus.offline')
-    let proxyMC = false;
-    let mcCreaMohist = false;
-    let mcSurvie = false;
+    let proxyMC = "false";
+    let mcCreaMohist = "false";
+    let mcSurvie = "false";
     let crea_count = 0;
     let survie_count = 0;
 
@@ -331,19 +331,22 @@ const refreshServerStatus = async (fade = false) => {
     }
 
     function getColor(input) {
+        if (input === "maintenance") {
+            return "orange";
+        }
         return input ? "green" : "red";
     }
 
     const tooltipServerHTML = `<div class="ServerStatusContainer">
-        <span class="ServerStatusIcon" style="color: ${getColor(proxyMC)};">&#8226;</span>
+        <span class="ServerStatusIcon" style="color: ${getColor(proxyMC)}; font-size: 24px; vertical-align: middle;">&#8226;</span>
         <span class="ServerStatusName">Proxy</span>
         </div>
         <div class="ServerStatusContainer">
-        <span class="ServerStatusIcon" style="color: ${getColor(mcSurvie)};">&#8226;</span>
+        <span class="ServerStatusIcon" style="color: ${getColor(mcSurvie)}; font-size: 24px; vertical-align: middle;">&#8226;</span>
         <span class="ServerStatusName">Survie</span>
         </div>
         <div class="ServerStatusContainer">
-        <span class="ServerStatusIcon" style="color: ${getColor(mcCreaMohist)};">&#8226;</span>
+        <span class="ServerStatusIcon" style="color: ${getColor(mcCreaMohist)}; font-size: 24px; vertical-align: middle;">&#8226;</span>
         <span class="ServerStatusName">Créatif</span>
         </div>
         `
