@@ -126,7 +126,7 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
     msftAuthViewOnClose = arguments_[1]
     msftAuthWindow = new BrowserWindow({
         title: LangLoader.queryJS('index.microsoftLoginTitle'),
-        backgroundColor: '#222222',
+        backgroundColor: '#24202b',
         width: 520,
         height: 600,
         frame: true,
@@ -179,7 +179,7 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGOUT, (ipcEvent, uuid, isLastAccount) => {
     msftLogoutSuccessSent = false
     msftLogoutWindow = new BrowserWindow({
         title: LangLoader.queryJS('index.microsoftLogoutTitle'),
-        backgroundColor: '#222222',
+        backgroundColor: '#24202b',
         width: 520,
         height: 600,
         frame: true,
@@ -231,12 +231,12 @@ function createWindow() {
         height: 720,
         icon: getPlatformIcon('icon'),
         frame: false,
+        backgroundColor: '#24202b',  // match first slide color to prevent flash
         webPreferences: {
             preload: path.join(__dirname, 'app', 'assets', 'js', 'preloader.js'),
             nodeIntegration: true,
             contextIsolation: false
-        },
-        backgroundColor: '#171614'
+        }
     })
     remoteMain.enable(win.webContents)
 
@@ -253,9 +253,9 @@ function createWindow() {
 
     win.loadURL(pathToFileURL(path.join(__dirname, 'app', 'app.ejs')).toString())
 
-    /*win.once('ready-to-show', () => {
-        win.show()
-    })*/
+    win.once('ready-to-show', () => {
+        try { win.show() } catch(e) {}
+    })
 
     win.removeMenu()
 

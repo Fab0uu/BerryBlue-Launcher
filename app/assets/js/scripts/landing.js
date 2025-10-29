@@ -68,10 +68,15 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
 
 (function(){
   const SWEEP_MS = 1200;   // durÃ©e slide-in
-  const EXIT_MS  = 900;    // durÃ©e slide-out
-  const GAP_MS   = 280;    // delay before the main curtain leaves
-  const LOGO_REVEAL_DELAY = 320;  // hold time before revealing the logo
+  const EXIT_MS  = 1400;    // durÃ©e slide-out
+  const GAP_MS   = 900;    // delay before the main curtain leaves
+  const LOGO_REVEAL_DELAY = 150;  // hold time before revealing the logo
+  const LOGO_ZOOM_MS = 1100;
+  const LOGO_FADE_MS = 3500; // fade-out duration for overlay logo
+  const LOGO_FADE_DELAY_MS = 1500; // delay before starting the fade-out
   const LOGO_MARGIN = 36;         // padding around the logo curtain
+  const START_DELAY = 120;
+  const UNDERLAY_INITIAL_SCALE = 1; // CSS body[data-intro] #menuBgLogo scale
 
   async function runIntro(){
     const overlay = document.getElementById('introOverlay')
@@ -87,6 +92,7 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
     const menuLogo = document.getElementById('menuBgLogo')
     const logoWrapper = menuLogo ? menuLogo.parentElement : null
     const originalLogoZIndex = menuLogo ? (menuLogo.style.zIndex || '') : ''
+    const originalLogoTransition = menuLogo ? (menuLogo.style.transition || '') : ''
     const originalWrapperZIndex = logoWrapper ? (logoWrapper.style.zIndex || '') : ''
 
     main.style.display = 'block'
@@ -104,12 +110,34 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
     curtain.offsetHeight
     curtain.style.animation = ''
 
+    const MAIN_CURTAIN_BG = curtain ? window.getComputedStyle(curtain).backgroundColor || '#2b2b2b' : '#2b2b2b'
+    const LOGO_CURTAIN_BG = '#24202b' // distinct dark blue-grey for the first slide
     overlay.style.display = 'block'
-    overlay.style.background = '#000'
-
-    const overlayColor = curtain ? window.getComputedStyle(curtain).backgroundColor || '#2b2b2b' : '#2b2b2b'
+    // Ensure initial paint matches the first slide color to avoid flash.
+    overlay.style.background = LOGO_CURTAIN_BG
+    if(curtain) curtain.style.zIndex = '2'
     let logoCurtain = null
     let logoCurtainMetrics = null
+    let overlayLogo = null
+    let menuLogoInitialScale = 1
+
+    const getCurrentScale = (el) => {
+      try{
+        const t = window.getComputedStyle(el).transform
+        if(t && t !== 'none'){
+          const m = t.match(/matrix\(([^)]+)\)/)
+          if(m){
+            const p = m[1].split(',').map(v => parseFloat(v.trim()))
+            if(p.length >= 6){
+              const a = p[0], b = p[1]
+              const scale = Math.sqrt(a*a + b*b)
+              return isFinite(scale) && scale > 0 ? scale : 1
+            }
+          }
+        }
+      }catch(e){}
+      return 1
+    }
 
     const prepareLogoCurtain = () => {
       if(!menuLogo) return null
@@ -117,22 +145,12 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
       if(rect.width <= 0 || rect.height <= 0) return null
 
       const margin = LOGO_MARGIN
-      let top = rect.top - margin
-      let height = rect.height + margin * 2
-      if(top < 0){
-        height += top
-        top = 0
-      }
-      const bottomOverflow = (top + height) - window.innerHeight
-      if(bottomOverflow > 0){
-        height -= bottomOverflow
-      }
-      if(height <= 0) return null
-
-      const width = rect.width + margin * 2
-      const finalLeft = rect.left - margin
-      const offscreenRight = window.innerWidth + width + margin
-      const offscreenLeft = Math.min(-width - margin, finalLeft - width - margin)
+      // Full-screen first slide: present from the start, covering the entire view.
+      const top = 0
+      const finalLeft = 0
+      const width = Math.ceil(window.innerWidth + margin * 2)
+      const height = Math.ceil(window.innerHeight)
+      const offscreenLeft = -width - margin
 
       const existing = document.getElementById('introLogoCurtain')
       if(existing) existing.remove()
@@ -145,23 +163,49 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
         top: `${top}px`,
         width: `${width}px`,
         height: `${height}px`,
-        left: `${offscreenRight}px`,
-        background: overlayColor,
+        left: `${finalLeft}px`,        // start already covering the screen
+        background: LOGO_CURTAIN_BG,
         zIndex: '5',
         pointerEvents: 'none',
-        transition: `left ${SWEEP_MS}ms cubic-bezier(.2,.8,.2,1)`
+        transition: `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
       })
 
       overlay.appendChild(panel)
 
-      requestAnimationFrame(() => {
-        panel.style.left = `${finalLeft}px`
-      })
+      // No slide-in. It's already in place at left=0.
 
       return {
         panel,
         offscreenLeft
       }
+    }
+
+    // Create overlay copy of the logo so it can be shown before the menu.
+    const prepareOverlayLogo = () => {
+      if(!menuLogo) return null
+      const rect = menuLogo.getBoundingClientRect()
+      if(rect.width <= 0 || rect.height <= 0) return null
+      const img = document.createElement('img')
+      img.id = 'introOverlayLogo'
+      img.className = 'intro-logo'
+      img.src = menuLogo.currentSrc || menuLogo.src
+      Object.assign(img.style, {
+        position: 'fixed',
+        left: `${rect.left}px`,
+        top: `${rect.top}px`,
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        zIndex: '3',
+        pointerEvents: 'none',
+        transformOrigin: 'center center',
+        opacity: '1',
+        transition: 'transform ' + LOGO_ZOOM_MS + 'ms ease, opacity ' + LOGO_FADE_MS + 'ms ease'
+      })
+      // Ensure zoom applies even if a CSS rule had !important previously.
+      img.style.setProperty('transform', 'scale(1)', 'important')
+      img.style.setProperty('will-change', 'transform')
+      overlay.appendChild(img)
+      return img
     }
 
     if(menuLogo){
@@ -190,6 +234,11 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
         // ignore, the curtain keeps the flash hidden
       }
 
+      // place overlay logo copy so it can be revealed first
+      overlayLogo = prepareOverlayLogo()
+      // Capture the menu logo's current scale BEFORE switching body attributes.
+      menuLogoInitialScale = getCurrentScale(menuLogo) || 0.92
+
       const metrics = prepareLogoCurtain()
       if(metrics){
         logoCurtain = metrics.panel
@@ -205,18 +254,24 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
       }
     }
 
-    overlay.classList.add('show')
+    // Do not animate the full-screen curtain in. Keep it covering the screen statically.
+    // The first visible slide should be the small logo panel only.
+    if(curtain){
+      curtain.style.transform = 'translateX(0%)'
+    }
 
     setTimeout(() => {
       const revealLogo = () => {
+        if(menuLogo){
+          menuLogo.style.transition = 'transform ' + LOGO_ZOOM_MS + 'ms ease'
+        }
         body.setAttribute('data-intro-zoom', '1')
         body.removeAttribute('data-intro')
 
-        if(menuLogo){
-          menuLogo.style.zIndex = '10001'
-          if(logoWrapper){
-            logoWrapper.style.zIndex = '10001'
-          }
+        // Smooth zoom on the overlay logo
+        if(overlayLogo){
+          const targetScale = 1 / (menuLogoInitialScale || 0.92)
+          overlayLogo.style.setProperty('transform', 'scale(' + targetScale.toFixed(4) + ')', 'important')
         }
 
         if(logoCurtain && logoCurtainMetrics){
@@ -233,9 +288,14 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
 
       setTimeout(() => {
         overlay.style.background = 'transparent'
+        // schedule a slight delay before fading out the overlay logo
+        if(overlayLogo){
+          setTimeout(() => { overlayLogo.style.opacity = '0' }, LOGO_FADE_DELAY_MS)
+        }
         overlay.classList.remove('show')
         overlay.classList.add('hide')
 
+        const REMOVE_DELAY = Math.max(EXIT_MS, LOGO_FADE_DELAY_MS + LOGO_FADE_MS)
         setTimeout(() => {
           overlay.style.display = 'none'
           overlay.classList.remove('hide')
@@ -252,6 +312,15 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
             } else {
               menuLogo.style.removeProperty('z-index')
             }
+            if(originalLogoTransition){
+              menuLogo.style.transition = originalLogoTransition
+            } else {
+              menuLogo.style.removeProperty('transition')
+            }
+          }
+          if(overlayLogo){
+            overlayLogo.remove()
+            overlayLogo = null
           }
           if(logoWrapper){
             if(originalWrapperZIndex){
@@ -260,9 +329,9 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
               logoWrapper.style.removeProperty('z-index')
             }
           }
-        }, EXIT_MS)
-      }, LOGO_REVEAL_DELAY + GAP_MS)
-    }, SWEEP_MS)
+        }, REMOVE_DELAY)
+      }, LOGO_REVEAL_DELAY + LOGO_ZOOM_MS + GAP_MS)
+    }, START_DELAY)
   }
 
   // Lance lâ€™intro au chargement du DOM.
