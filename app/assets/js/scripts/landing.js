@@ -27,6 +27,21 @@ const {
     extractJdk
 }                             = require('helios-core/java')
 
+// Keep reference to Minecraft Process
+let proc
+// NOUVEAU : état runtime
+let isLaunching = false        // true = on est en phase de lancement (bouton bloqué)
+let gameIsRunning = false      // true = on pense que le jeu tourne déjà
+
+// Is DiscordRPC enabled
+let hasRPC = false
+
+// Joined server regex
+// Change this if your server uses something different.
+const GAME_JOINED_REGEX = /\[.+\]: Sound engine started/
+const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
+const MIN_LINGER = 5000
+
 // Internal Requirements
 const DiscordWrapper          = require('./assets/js/discordwrapper')
 const ProcessBuilder          = require('./assets/js/processbuilder')
@@ -37,10 +52,115 @@ const launch_details          = document.getElementById('launch_details')
 const launch_progress         = document.getElementById('launch_progress')
 const launch_progress_label   = document.getElementById('launch_progress_label')
 const launch_details_text     = document.getElementById('launch_details_text')
-const server_selection_button = document.getElementById('server_selection_button')
+const server_selection_button = document.getElementById('server_selection_button') || { innerHTML: '', onclick: null, style: {} }
 const user_text               = document.getElementById('user_text')
 
 const loggerLanding = LoggerUtil.getLogger('Landing')
+
+document.getElementById('main')?.style.setProperty('display','block','important');
+document.getElementById('landingContainer')?.style.setProperty('display','block','important');
+
+/* === INTRO (2 plaques) — calage exact sur le logo du menu === */
+(() => {
+  const whenDOM = (fn) => (document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', fn, { once: true })
+    : fn());
+
+  whenDOM(() => {
+    // sécurité: montrer l'UI, couper l'ancien loader
+    document.getElementById('main')?.style.setProperty('display','block','important');
+    document.getElementById('landingContainer')?.style.setProperty('display','block','important');
+    document.getElementById('loadingContainer')?.style.setProperty('display','none','important');
+
+    const overlay = document.getElementById('introOverlay');
+    if (!overlay) return;
+
+    const black = overlay.querySelector('.intro-black');
+    const panel = overlay.querySelector('.intro-panel');       // petite plaque (1er slide)
+    const logo  = overlay.querySelector('.intro-logo');        // logo d'intro (doit caler le menu)
+    const big   = overlay.querySelector('.intro-cover-all')    // grande plaque (2e slide)
+                 || (() => {                                  // si pas déjà dans le HTML, on la crée
+                      const el = document.createElement('div');
+                      el.className = 'intro-cover-all';
+                      Object.assign(el.style, {
+                        position:'absolute', inset:'0', background:'#1f1f1f',
+                        transform:'translateX(0%)'
+                      });
+                      overlay.appendChild(el);
+                      return el;
+                    })();
+
+    // --- calage pixel-par-pixel sur le logo du menu ---
+    const menuLogo = document.getElementById('menuBgLogo');
+
+    function applyRect(rect){
+      if (!logo) return;
+      logo.style.left   = `${rect.left}px`;
+      logo.style.top    = `${rect.top}px`;
+      logo.style.width  = `${rect.width}px`;
+      logo.style.height = `${rect.height}px`;
+    }
+
+    function syncLogoNow(){
+      if (!menuLogo || !logo) return true; // rien à faire (pas bloquant)
+      const r = menuLogo.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0){
+        applyRect(r);
+        return true;
+      }
+      return false;
+    }
+
+    // on s'assure que le logo du menu a une taille avant de lancer l'anim
+    const startTimeline = () => requestAnimationFrame(() => overlay.classList.add('run'));
+
+    if (!syncLogoNow()){
+      const t0 = performance.now();
+      const id = setInterval(() => {
+        if (syncLogoNow() || performance.now() - t0 > 1000) {
+          clearInterval(id);
+          startTimeline();
+        }
+      }, 16);
+    } else {
+      startTimeline();
+    }
+
+    // on recale si la fenêtre est redimensionnée pendant l'intro
+    const onResize = () => { if (menuLogo) applyRect(menuLogo.getBoundingClientRect()); };
+    window.addEventListener('resize', onResize);
+
+    // --- séquence de fin: la grande plaque passe AU-DESSUS et "emporte" le logo ---
+    big.addEventListener('animationstart', (ev) => {
+      if (ev.animationName === 'intro-all-out') {
+        big.classList.add('above');      // au-dessus du logo => le logo disparaît avec la plaque
+      }
+    });
+
+    big.addEventListener('animationend', (ev) => {
+        if (ev.animationName === 'intro-all-out') {
+            // Attendre 1s APRÈS la fin du dernier slide…
+            setTimeout(() => {
+            // …puis on fade le logo…
+            if (logo) logo.style.opacity = '0';
+            // …et on retire l’overlay juste après le fondu.
+            setTimeout(() => {
+                overlay.remove();
+                window.removeEventListener('resize', onResize);
+            }, 30000); // durée du fade (voir transition CSS)
+            }, 0); // <-- délai demandé : 1 seconde
+        }
+    });
+
+    // filet de sécu (si quelque chose bloquait)
+    setTimeout(() => {
+      if (overlay?.isConnected){
+        overlay.remove();
+        window.removeEventListener('resize', onResize);
+      }
+    }, 7000);
+  });
+})();
 
 /* Launch Progress Wrapper Functions */
 
@@ -52,11 +172,26 @@ const loggerLanding = LoggerUtil.getLogger('Landing')
 function toggleLaunchArea(loading){
     if(loading){
         launch_details.style.display = 'flex'
-        launch_content.style.display = 'none'
     } else {
         launch_details.style.display = 'none'
-        launch_content.style.display = 'inline-flex'
     }
+}
+
+function setLaunchStarting() {
+    const btn = document.getElementById('launch_button')
+    const text = btn.querySelector('.launch_text')
+    const progText = btn.querySelector('.launch_progress_text')
+    const fill = btn.querySelector('.launch_fill')
+
+    // Cache "JOUER"
+    text.style.opacity = '0'
+
+    // Montre la zone de statut (qui deviendra % plus tard)
+    progText.style.opacity = '1'
+    progText.textContent = 'CHARGEMENT...'
+
+    // Barre blanche reset
+    fill.style.width = '0%'
 }
 
 /**
@@ -69,15 +204,210 @@ function setLaunchDetails(details){
 }
 
 /**
- * Set the value of the loading progress bar and display that value.
- * 
- * @param {number} percent Percentage (0-100)
+ * Met à jour la progression visuelle.
+ * - si percent == 0 → on garde "Chargement..."
+ * - si percent > 0 → on affiche "xx%"
  */
 function setLaunchPercentage(percent){
+    const btn = document.getElementById('launch_button')
+    const textPlay    = btn.querySelector('.launch_text')
+    const textLoading = btn.querySelector('.launch_loading_text')
+    const progText    = btn.querySelector('.launch_progress_text')
+    const fill        = btn.querySelector('.launch_fill')
+
+    // Tant qu'on est en lancement/téléchargement, le bouton ne doit PAS être cliquable.
+    setLaunchEnabled(false)
+
+    if (percent === 0){
+        // Juste après clic :
+        // - cacher "JOUER"
+        // - afficher "Chargement..."
+        // - cacher le pourcentage
+        if(textPlay)    textPlay.style.opacity = '0'
+        if(textLoading) textLoading.style.opacity = '1'
+        if(progText)    progText.style.opacity = '0'
+        if(fill)        fill.style.width = '0%'
+    } else {
+        // Téléchargement effectif avec progression :
+        // - cacher "JOUER"
+        // - cacher "Chargement..."
+        // - afficher "XX%"
+        if(textPlay)    textPlay.style.opacity = '0'
+        if(textLoading) textLoading.style.opacity = '0'
+        if(progText){
+            progText.style.opacity = '1'
+            progText.textContent = `${percent}%`
+        }
+        if(fill)        fill.style.width = `${percent}%`
+    }
+
+    // synchro avec l'UI legacy du bas
     launch_progress.setAttribute('max', 100)
     launch_progress.setAttribute('value', percent)
     launch_progress_label.innerHTML = percent + '%'
 }
+
+
+/**
+ * Remet le bouton dans son état neutre visuellement :
+ * - "JOUER" visible
+ * - "Chargement..." masqué
+ * - % masqué
+ * - barre blanche vidée
+ */
+function resetLaunchButtonUI() {
+    const btn = document.getElementById('launch_button')
+    if (!btn) return
+
+    const textPlay     = btn.querySelector('.launch_text')
+    const textLoading  = btn.querySelector('.launch_loading_text')
+    const textPercent  = btn.querySelector('.launch_progress_text')
+    const fill         = btn.querySelector('.launch_fill')
+
+    // montrer "JOUER"
+    textPlay.style.opacity    = '1'
+
+    // cacher "Chargement..." et le pourcentage
+    textLoading.style.opacity = '0'
+    textPercent.style.opacity = '0'
+    textPercent.textContent   = '0%'
+
+    // reset de la barre blanche
+    fill.style.width = '0%'
+
+    // on masque la zone de progression sous le bouton
+    toggleLaunchArea(false)
+
+    // on redonne la main au bouton
+    setLaunchEnabled(true)
+
+    // on marque qu'on n'est plus en phase de lancement
+    isLaunching = false
+}
+
+function promptAlreadyRunning() {
+    // on remet le bouton dans l'état normal AVANT d'afficher la pop-up
+    resetLaunchButtonUI()
+
+    setOverlayContent(
+        'Le jeu est déjà lancé',
+        'Une instance du jeu semble déjà en cours. Lancer une deuxième instance peut causer des problèmes. Tu veux quand même lancer une autre instance ?',
+        'Lancer quand même',
+        'Ne pas relancer'
+    )
+
+    // si l’utilisateur CONFIRME: on lance quand même
+    setOverlayHandler(async () => {
+        toggleOverlay(false)
+        await startLaunchSequence()
+    })
+
+    // si l’utilisateur REFUSE ou ferme avec Échap: on reste tranquille
+    setDismissHandler(() => {
+        toggleOverlay(false)
+        // on NE relance PAS le jeu
+        isLaunching = false
+        // le bouton reste en mode "JOUER" actif
+    })
+
+    // on affiche l’overlay avec les deux boutons
+    toggleOverlay(true, true)
+}
+
+async function startLaunchSequence() {
+    if (isLaunching) return
+    isLaunching = true
+
+    // bloque le bouton immédiatement
+    setLaunchEnabled(false)
+
+    loggerLanding.info('Launching game..')
+    try {
+        const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
+        const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
+
+        if (jExe == null) {
+            await asyncSystemScan(server.effectiveJavaOptions)
+        } else {
+
+            setLaunchDetails(Lang.queryJS('landing.launch.pleaseWait'))
+            toggleLaunchArea(true)
+            setLaunchPercentage(0)
+
+            const details = await validateSelectedJvm(
+                ensureJavaDirIsRoot(jExe),
+                server.effectiveJavaOptions.supported
+            )
+
+            if (details != null) {
+                loggerLanding.info('Jvm Details', details)
+                await dlAsync()
+            } else {
+                await asyncSystemScan(server.effectiveJavaOptions)
+            }
+        }
+    } catch (err) {
+        loggerLanding.error('Unhandled error in during launch process.', err)
+        showLaunchFailure(
+            Lang.queryJS('landing.launch.failureTitle'),
+            Lang.queryJS('landing.launch.failureText')
+        )
+
+        // échec -> on réactive le bouton et on remet l'état visuel d'origine
+        resetLaunchButtonUI()
+    }
+}
+
+function isGameRunning(){
+    return !!(proc && proc.exitCode === null)
+}
+
+async function beginLaunchSequence(){
+    loggerLanding.info('Launching game..')
+    try {
+        // Empêche le spam clic immédiatement.
+        setLaunchEnabled(false)
+
+        const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
+        const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
+
+        if(jExe == null){
+            // pas de Java -> scan système
+            await asyncSystemScan(server.effectiveJavaOptions)
+        } else {
+
+            setLaunchDetails(Lang.queryJS('landing.launch.pleaseWait'))
+            toggleLaunchArea(true)
+
+            // passe le bouton en mode "Chargement..." instantanément
+            setLaunchPercentage(0)
+
+            const details = await validateSelectedJvm(
+                ensureJavaDirIsRoot(jExe),
+                server.effectiveJavaOptions.supported
+            )
+
+            if(details != null){
+                loggerLanding.info('Jvm Details', details)
+                await dlAsync()
+            } else {
+                await asyncSystemScan(server.effectiveJavaOptions)
+            }
+        }
+    } catch(err) {
+        loggerLanding.error('Unhandled error during launch.', err)
+        showLaunchFailure(
+            Lang.queryJS('landing.launch.failureTitle'),
+            Lang.queryJS('landing.launch.failureText')
+        )
+
+        // En cas d'erreur : on remet le bouton propre et cliquable.
+        resetLaunchButtonUI()
+        setLaunchEnabled(true)
+        toggleLaunchArea(false)
+    }
+}
+
 
 /**
  * Set the value of the OS progress bar and display that on the UI.
@@ -89,6 +419,7 @@ function setDownloadPercentage(percent){
     setLaunchPercentage(percent)
 }
 
+
 /**
  * Enable or disable the launch button.
  * 
@@ -99,141 +430,218 @@ function setLaunchEnabled(val){
 }
 
 // Bind launch button
+// Bind launch button
+// Bind launch button
 document.getElementById('launch_button').addEventListener('click', async e => {
+    // Si un process jeu existe et qu'il n'est pas encore terminé -> popup de confirmation.
+    if (typeof proc !== 'undefined' && proc && proc.exitCode === null) {
+        setOverlayContent(
+            'Le jeu est déjà en cours',
+            'Minecraft semble déjà lancé. Relancer peut ouvrir une deuxième instance.',
+            'Ne pas relancer le jeu',
+            'Relancer quand même'
+        )
+
+        // Gros bouton principal : NE PAS relancer.
+        setOverlayHandler(() => {
+            toggleOverlay(false)
+            // Remet le bouton en mode "JOUER" proprement.
+            if (typeof resetLaunchButtonUI === 'function') {
+                resetLaunchButtonUI()
+            } else {
+                // fallback minimal si ta fonction n'existe pas
+                setLaunchPercentage(0)
+                setLaunchEnabled(true)
+            }
+        })
+
+        // Lien secondaire : relancer quand même (force un nouveau lancement).
+        setDismissHandler(async () => {
+            toggleOverlay(false)
+            await actuallyStartLaunch()
+        })
+
+        toggleOverlay(true, true)
+        return
+    }
+
+    // Sinon, lancement normal.
+    await actuallyStartLaunch()
+})
+
+async function actuallyStartLaunch(){
     loggerLanding.info('Launching game..')
+    // Désactiver le bouton pendant le chargement (sans l’assombrir si ton CSS a été ajusté).
+    setLaunchEnabled(true)  // s’assure que l’attribut existe
+    document.getElementById('launch_button').disabled = true
+
     try {
         const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
         const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
-        if(jExe == null){
+
+        if (jExe == null) {
             await asyncSystemScan(server.effectiveJavaOptions)
         } else {
-
             setLaunchDetails(Lang.queryJS('landing.launch.pleaseWait'))
             toggleLaunchArea(true)
             setLaunchPercentage(0, 100)
 
-            const details = await validateSelectedJvm(ensureJavaDirIsRoot(jExe), server.effectiveJavaOptions.supported)
-            if(details != null){
+            const details = await validateSelectedJvm(
+                ensureJavaDirIsRoot(jExe),
+                server.effectiveJavaOptions.supported
+            )
+
+            if (details != null) {
                 loggerLanding.info('Jvm Details', details)
                 await dlAsync()
-
             } else {
                 await asyncSystemScan(server.effectiveJavaOptions)
             }
         }
-    } catch(err) {
+    } catch (err) {
         loggerLanding.error('Unhandled error in during launch process.', err)
-        showLaunchFailure(Lang.queryJS('landing.launch.failureTitle'), Lang.queryJS('landing.launch.failureText'))
+        showLaunchFailure(
+            Lang.queryJS('landing.launch.failureTitle'),
+            Lang.queryJS('landing.launch.failureText')
+        )
+        // En cas d’erreur immédiate, on réactive le bouton.
+        document.getElementById('launch_button').disabled = false
     }
-})
+}
+
 
 // Bind settings button
-document.getElementById('settingsMediaButton').onclick = async e => {
-    await prepareSettings()
-    switchView(getCurrentView(), VIEWS.settings)
+const settingsBtn = document.getElementById('settingsMediaButton')
+if (settingsBtn) {
+    settingsBtn.onclick = async e => {
+        await prepareSettings()
+        switchView(getCurrentView(), VIEWS.settings)
+    }
 }
 
-// Bind avatar overlay button.
-document.getElementById('avatarOverlay').onclick = async e => {
-    await prepareSettings()
-    switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
-        settingsNavItemListener(document.getElementById('settingsNavAccount'), false)
-    })
+// Bind avatar overlay button (désactivé si inexistant)
+const avatarOverlay = document.getElementById('avatarOverlay')
+if (avatarOverlay) {
+    avatarOverlay.onclick = async e => {
+        await prepareSettings()
+        switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
+            settingsNavItemListener(document.getElementById('settingsNavAccount'), false)
+        })
+    }
 }
+
 
 // Bind selected account
-function updateSelectedAccount(authUser){
+function updateSelectedAccount(authUser) {
+    const userText = document.getElementById('user_text')
+    const avatarContainer = document.getElementById('avatarContainer')
+
+    if (!userText || !avatarContainer) return // évite tout plantage si supprimé
+
     let username = Lang.queryJS('landing.selectedAccount.noAccountSelected')
-    if(authUser != null){
-        if(authUser.displayName != null){
+    if (authUser != null) {
+        if (authUser.displayName != null) {
             username = authUser.displayName
         }
-        if(authUser.uuid != null){
-            document.getElementById('avatarContainer').style.backgroundImage = `url('https://mc-heads.net/body/${authUser.uuid}/right')`
+        if (authUser.uuid != null) {
+            avatarContainer.style.backgroundImage = `url('https://mc-heads.net/body/${authUser.uuid}/right')`
         }
     }
-    user_text.innerHTML = username
+    userText.innerHTML = username
 }
-updateSelectedAccount(ConfigManager.getSelectedAccount())
+if (typeof updateSelectedAccount === 'function') {
+    try { updateSelectedAccount(ConfigManager.getSelectedAccount()) } catch(e) { console.warn('updateSelectedAccount skipped', e) }
+}
 
-// Bind selected server
-function updateSelectedServer(serv){
-    if(getCurrentView() === VIEWS.settings){
+// Force le serveur unique dès le chargement
+document.addEventListener('DOMContentLoaded', () => {
+    resetLaunchButtonUI()
+})
+
+function updateSelectedServer(serv) {
+    if (getCurrentView() === VIEWS.settings) {
         fullSettingsSave()
     }
-    ConfigManager.setSelectedServer(serv != null ? serv.rawServer.id : null)
+
+    if (serv == null) {
+        const dist = ConfigManager.getDistribution()
+        if (dist && dist.servers && dist.servers.length > 0) {
+            serv = { rawServer: dist.servers[0] }
+        }
+    }
+
+    ConfigManager.setSelectedServer(serv ? serv.rawServer.id : null)
     ConfigManager.save()
-    server_selection_button.innerHTML = '&#8226; ' + (serv != null ? serv.rawServer.name : Lang.queryJS('landing.noSelection'))
-    if(getCurrentView() === VIEWS.settings){
+
+    if (server_selection_button && server_selection_button.innerHTML !== undefined) {
+        server_selection_button.innerHTML = '&#8226; ' + (serv ? serv.rawServer.name : Lang.queryJS('landing.noSelection'))
+    }
+
+    if (getCurrentView() === VIEWS.settings) {
         animateSettingsTabRefresh()
     }
+
     setLaunchEnabled(serv != null)
-}
-// Real text is set in uibinder.js on distributionIndexDone.
-server_selection_button.innerHTML = '&#8226; ' + Lang.queryJS('landing.selectedServer.loading')
-server_selection_button.onclick = async e => {
-    e.target.blur()
-    await toggleServerSelection(true)
 }
 
 // Update Mojang Status Color
-const refreshMojangStatuses = async function(){
-    loggerLanding.info('Refreshing Mojang Statuses..')
+// const refreshMojangStatuses = async function(){
+//     loggerLanding.info('Refreshing Mojang Statuses..')
 
-    let status = 'grey'
-    let tooltipEssentialHTML = ''
-    let tooltipNonEssentialHTML = ''
+//     let status = 'grey'
+//     let tooltipEssentialHTML = ''
+//     let tooltipNonEssentialHTML = ''
 
-    const response = await MojangRestAPI.status()
-    let statuses
-    if(response.responseStatus === RestResponseStatus.SUCCESS) {
-        statuses = response.data
-    } else {
-        loggerLanding.warn('Unable to refresh Mojang service status.')
-        statuses = MojangRestAPI.getDefaultStatuses()
-    }
+//     const response = await MojangRestAPI.status()
+//     let statuses
+//     if(response.responseStatus === RestResponseStatus.SUCCESS) {
+//         statuses = response.data
+//     } else {
+//         loggerLanding.warn('Unable to refresh Mojang service status.')
+//         statuses = MojangRestAPI.getDefaultStatuses()
+//     }
     
-    greenCount = 0
-    greyCount = 0
+//     greenCount = 0
+//     greyCount = 0
 
-    for(let i=0; i<statuses.length; i++){
-        const service = statuses[i]
+//     for(let i=0; i<statuses.length; i++){
+//         const service = statuses[i]
 
-        const tooltipHTML = `<div class="mojangStatusContainer">
-            <span class="mojangStatusIcon" style="color: ${MojangRestAPI.statusToHex(service.status)};">&#8226;</span>
-            <span class="mojangStatusName">${service.name}</span>
-        </div>`
-        if(service.essential){
-            tooltipEssentialHTML += tooltipHTML
-        } else {
-            tooltipNonEssentialHTML += tooltipHTML
-        }
+//         const tooltipHTML = `<div class="mojangStatusContainer">
+//             <span class="mojangStatusIcon" style="color: ${MojangRestAPI.statusToHex(service.status)};">&#8226;</span>
+//             <span class="mojangStatusName">${service.name}</span>
+//         </div>`
+//         if(service.essential){
+//             tooltipEssentialHTML += tooltipHTML
+//         } else {
+//             tooltipNonEssentialHTML += tooltipHTML
+//         }
 
-        if(service.status === 'yellow' && status !== 'red'){
-            status = 'yellow'
-        } else if(service.status === 'red'){
-            status = 'red'
-        } else {
-            if(service.status === 'grey'){
-                ++greyCount
-            }
-            ++greenCount
-        }
+//         if(service.status === 'yellow' && status !== 'red'){
+//             status = 'yellow'
+//         } else if(service.status === 'red'){
+//             status = 'red'
+//         } else {
+//             if(service.status === 'grey'){
+//                 ++greyCount
+//             }
+//             ++greenCount
+//         }
 
-    }
+//     }
 
-    if(greenCount === statuses.length){
-        if(greyCount === statuses.length){
-            status = 'grey'
-        } else {
-            status = 'green'
-        }
-    }
+//     if(greenCount === statuses.length){
+//         if(greyCount === statuses.length){
+//             status = 'grey'
+//         } else {
+//             status = 'green'
+//         }
+//     }
     
-    document.getElementById('mojangStatusEssentialContainer').innerHTML = tooltipEssentialHTML
-    document.getElementById('mojangStatusNonEssentialContainer').innerHTML = tooltipNonEssentialHTML
-    document.getElementById('mojang_status_icon').style.color = MojangRestAPI.statusToHex(status)
-}
+//     document.getElementById('mojangStatusEssentialContainer').innerHTML = tooltipEssentialHTML
+//     document.getElementById('mojangStatusNonEssentialContainer').innerHTML = tooltipNonEssentialHTML
+//     document.getElementById('mojang_status_icon').style.color = MojangRestAPI.statusToHex(status)
+// }
 
 const refreshServerStatus = async (fade = false) => {
     loggerLanding.info('Refreshing Server Status')
@@ -354,11 +762,37 @@ const refreshServerStatus = async (fade = false) => {
     document.getElementById('serverStatusDetailled').innerHTML = tooltipServerHTML
 }
 
-refreshMojangStatuses()
+const dotSurvie = document.getElementById('dot-survie');
+const txtSurvie = document.getElementById('text-survie');
+const dotCrea   = document.getElementById('dot-crea');
+const txtCrea   = document.getElementById('text-crea');
+
+const colorMap = { green:'#22c55e', red:'#ef4444', orange:'#f59e0b' };
+const toColor = (state) => {
+  if (state === true) return colorMap.green;
+  if (state === 'maintenance') return colorMap.orange;
+  return colorMap.red;
+};
+
+if (dotSurvie) dotSurvie.style.backgroundColor = toColor(mcSurvie);
+if (txtSurvie) txtSurvie.textContent = mcSurvie ? 'ONLINE' : 'OFFLINE';
+
+if (dotCrea) dotCrea.style.backgroundColor = toColor(mcCreaMohist);
+if (txtCrea) {
+  if (mcCreaMohist) {
+    const n = Number.isFinite(crea_count) ? crea_count : 0;
+    txtCrea.textContent = `${n} JOUEUR${n>1?'S':''}`;
+  } else {
+    txtCrea.textContent = 'OFFLINE';
+  }
+}
+
+
+// refreshMojangStatuses()
 // Server Status is refreshed in uibinder.js on distributionIndexDone.
 
 // Refresh statuses every hour. The status page itself refreshes every day so...
-let mojangStatusListener = setInterval(() => refreshMojangStatuses(true), 60*60*1000)
+let mojangStatusListener = null
 // Set refresh rate to once every 5 minutes.
 let serverStatusListener = setInterval(() => refreshServerStatus(true), 60000)
 
@@ -523,16 +957,6 @@ async function downloadJava(effectiveJavaOptions, launchAfter = true) {
 
 }
 
-// Keep reference to Minecraft Process
-let proc
-// Is DiscordRPC enabled
-let hasRPC = false
-// Joined server regex
-// Change this if your server uses something different.
-const GAME_JOINED_REGEX = /\[.+\]: Sound engine started/
-const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
-const MIN_LINGER = 5000
-
 async function dlAsync(login = true) {
 
     // Login parameter is temporary for debug purposes. Allows testing the validation/downloads without
@@ -549,7 +973,12 @@ async function dlAsync(login = true) {
         onDistroRefresh(distro)
     } catch(err) {
         loggerLaunchSuite.error('Unable to refresh distribution index.', err)
-        showLaunchFailure(Lang.queryJS('landing.dlAsync.fatalError'), Lang.queryJS('landing.dlAsync.unableToLoadDistributionIndex'))
+        showLaunchFailure(
+            Lang.queryJS('landing.dlAsync.fatalError'),
+            Lang.queryJS('landing.dlAsync.unableToLoadDistributionIndex')
+        )
+        // remet le bouton dispo
+        resetLaunchButtonUI()
         return
     }
 
@@ -558,13 +987,14 @@ async function dlAsync(login = true) {
     if(login) {
         if(ConfigManager.getSelectedAccount() == null){
             loggerLanding.error('You must be logged into an account.')
+            resetLaunchButtonUI()
             return
         }
     }
 
     setLaunchDetails(Lang.queryJS('landing.dlAsync.pleaseWait'))
     toggleLaunchArea(true)
-    setLaunchPercentage(0, 100)
+    setLaunchPercentage(0)
 
     const fullRepairModule = new FullRepair(
         ConfigManager.getCommonDirectory(),
@@ -578,12 +1008,20 @@ async function dlAsync(login = true) {
 
     fullRepairModule.childProcess.on('error', (err) => {
         loggerLaunchSuite.error('Error during launch', err)
-        showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'), err.message || Lang.queryJS('landing.dlAsync.errorDuringLaunchText'))
+        showLaunchFailure(
+            Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'),
+            err.displayable || Lang.queryJS('landing.dlAsync.errorDuringLaunchText')
+        )
+        resetLaunchButtonUI()
     })
     fullRepairModule.childProcess.on('close', (code, _signal) => {
         if(code !== 0){
             loggerLaunchSuite.error(`Full Repair Module exited with code ${code}, assuming error.`)
-            showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'), Lang.queryJS('landing.dlAsync.seeConsoleForDetails'))
+            showLaunchFailure(
+                Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'),
+                Lang.queryJS('landing.dlAsync.seeConsoleForDetails')
+            )
+            resetLaunchButtonUI()
         }
     })
 
@@ -597,7 +1035,11 @@ async function dlAsync(login = true) {
         setLaunchPercentage(100)
     } catch (err) {
         loggerLaunchSuite.error('Error during file validation.')
-        showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringFileVerificationTitle'), err.displayable || Lang.queryJS('landing.dlAsync.seeConsoleForDetails'))
+        showLaunchFailure(
+            Lang.queryJS('landing.dlAsync.errorDuringFileVerificationTitle'),
+            err.displayable || Lang.queryJS('landing.dlAsync.seeConsoleForDetails')
+        )
+        resetLaunchButtonUI()
         return
     }
     
@@ -613,7 +1055,11 @@ async function dlAsync(login = true) {
             setDownloadPercentage(100)
         } catch(err) {
             loggerLaunchSuite.error('Error during file download.')
-            showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringFileDownloadTitle'), err.displayable || Lang.queryJS('landing.dlAsync.seeConsoleForDetails'))
+            showLaunchFailure(
+                Lang.queryJS('landing.dlAsync.errorDuringFileDownloadTitle'),
+                err.displayable || Lang.queryJS('landing.dlAsync.seeConsoleForDetails')
+            )
+            resetLaunchButtonUI()
             return
         }
     } else {
@@ -648,15 +1094,23 @@ async function dlAsync(login = true) {
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
 
+        // ⬇⬇⬇ MODIFIÉ ICI
         const onLoadComplete = () => {
-            toggleLaunchArea(false)
+            // le client est parti, on considère que le jeu tourne maintenant.
+            // on remet tout de suite le bouton dans l'état "JOUER"
+            // mais gameIsRunning reste true => si tu recliques, tu auras la popup.
+            resetLaunchButtonUI()
+
             if(hasRPC){
                 DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.loading'))
                 proc.stdout.on('data', gameStateChange)
             }
+
             proc.stdout.removeListener('data', tempListener)
             proc.stderr.removeListener('data', gameErrorListener)
         }
+        // ⬆⬆⬆ FIN MODIF
+
         const start = Date.now()
 
         // Attach a temporary listener to the client output.
@@ -688,7 +1142,11 @@ async function dlAsync(login = true) {
             data = data.trim()
             if(data.indexOf('Could not find or load main class net.minecraft.launchwrapper.Launch') > -1){
                 loggerLaunchSuite.error('Game launch failed, LaunchWrapper was not downloaded properly.')
-                showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'), Lang.queryJS('landing.dlAsync.launchWrapperNotDownloaded'))
+                showLaunchFailure(
+                    Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'),
+                    Lang.queryJS('landing.dlAsync.launchWrapperNotDownloaded')
+                )
+                resetLaunchButtonUI()
             }
         }
 
@@ -696,7 +1154,10 @@ async function dlAsync(login = true) {
             // Build Minecraft process.
             proc = pb.build()
 
-            // Bind listeners to stdout.
+            // on marque que le jeu tourne
+            gameIsRunning = true
+
+            // Bind listeners to stdout/err.
             proc.stdout.on('data', tempListener)
             proc.stderr.on('data', gameErrorListener)
 
@@ -706,23 +1167,43 @@ async function dlAsync(login = true) {
             if(distro.rawDistribution.discord != null && serv.rawServer.discord != null){
                 DiscordWrapper.initRPC(distro.rawDistribution.discord, serv.rawServer.discord)
                 hasRPC = true
-                proc.on('close', (code, signal) => {
+            }
+
+            // quand le jeu se ferme :
+            proc.on('close', (code, signal) => {
+                loggerLaunchSuite.info('Minecraft process closed with code', code, 'signal', signal)
+
+                // jeu plus en cours
+                gameIsRunning = false
+
+                // on coupe RPC si actif
+                if(hasRPC){
                     loggerLaunchSuite.info('Shutting down Discord Rich Presence..')
                     DiscordWrapper.shutdownRPC()
                     hasRPC = false
-                    proc = null
-                })
-            }
+                }
+
+                proc = null
+
+                // on remet le bouton "JOUER" (au cas où)
+                resetLaunchButtonUI()
+            })
 
         } catch(err) {
 
             loggerLaunchSuite.error('Error during launch', err)
-            showLaunchFailure(Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'), Lang.queryJS('landing.dlAsync.checkConsoleForDetails'))
+            showLaunchFailure(
+                Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'),
+                Lang.queryJS('landing.dlAsync.checkConsoleForDetails')
+            )
 
+            // en cas d’erreur, bouton remis normal
+            resetLaunchButtonUI()
         }
     }
 
 }
+
 
 /**
  * News Loading Functions
@@ -1111,4 +1592,14 @@ async function loadNews(){
     })
 
     return await promise
+}
+
+try {
+  const { app } = require('electron').remote || require('@electron/remote')
+  const version = app.getVersion()
+  const versionSpan = document.getElementById('launcherVersion')
+  if (versionSpan) versionSpan.textContent = version
+  console.log('Launcher version:', version)
+} catch (err) {
+  console.error('Impossible de récupérer la version du launcher:', err)
 }
