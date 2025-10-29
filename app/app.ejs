@@ -6,6 +6,10 @@
     <script src="./assets/js/scripts/uibinder.js"></script>
     <link type="text/css" rel="stylesheet" href="./assets/css/launcher.css">
     <style>
+        html, body {
+            height: 100%;
+            overflow: hidden; /* prevent any window scrollbar */
+        }
         body {
             /* Unifier la couleur initiale avec le 1er slide pour éviter le flash */
             background-color: #24202b;
@@ -14,7 +18,7 @@
         }
         #main {
             display: none;
-            height: calc(100% - 22px);
+            height: calc(100% - 36px);
             background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 100%);
             width: 100%;
             position: absolute;
