@@ -1,4 +1,4 @@
-/* Github Code Highlighting. */
+﻿/* Github Code Highlighting. */
 @import "../../../node_modules/github-syntax-dark/lib/github-dark.css";
 @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap');
 
@@ -12,7 +12,7 @@ body{
  *                                                                             *
  * Fonts                                                                       *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 @font-face {
     font-family: 'Avenir Book';
@@ -38,7 +38,7 @@ body{
  *                                                                             *
  * Element Styles                                                              *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
  
 /* Reset body, html, and div presets. */
 body, html, div {
@@ -67,7 +67,7 @@ body, button {
  *                                                                             *
  * Frame Styles (frame.ejs)                                                    *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Frame Bar */
 #frameBar {
@@ -225,7 +225,7 @@ body, button {
  *                                                                             *
  * Welcome View (welcome.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #welcomeContainer {
     position: relative;
@@ -379,7 +379,7 @@ body, button {
  *                                                                             *
  * Login View (login.ejs)                                                      *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Styles for dimmer login span. */
 .loginSpanDim {
@@ -889,7 +889,7 @@ body, button {
  *                                                                             *
  * Waiting View (waiting.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #waitingContainer {
     position: relative;
@@ -968,7 +968,7 @@ body, button {
  *                                                                             *
  * Login Options View (loginOptions.ejs)                                       *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #loginOptionsContainer {
     position: relative;
@@ -1058,7 +1058,7 @@ body, button {
  *                                                                             *
  * Settings View (sttings.ejs)                                                 *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main settings container. */
 #settingsContainer {
@@ -2455,7 +2455,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Structural Styles)                                            *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main content container. */
 #landingContainer {
@@ -2542,14 +2542,14 @@ input:checked + .toggleSwitchSlider:before {
     height: 100%;
     width: 33%;
     display: inline-flex;
-    flex: none;                /* ?vite l'?tirement */
+    flex: none;                /* évite l'étirement */
 }
 
 /*******************************************************************************
  *                                                                             *
  * Landing View (News Styles)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main container. */
 #newsContainer {
@@ -2868,7 +2868,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Top Styles)                                                   *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* * *
 * Landing View (Top Styles) | Left Content
@@ -3098,11 +3098,11 @@ input:checked + .toggleSwitchSlider:before {
 .mediaContainer:hover {
     backdrop-filter: blur(4px) brightness(1.4);
     background: rgba(255, 255, 255, 0.08);
-    transform: none;
+    transform: none; /* désactive le shrink */
 }
 
 .mediaContainer:hover .mediaSVG {
-    transform: none !important; /* emp?che le shrink */
+    transform: none !important; /* empêche le shrink */
     filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.8));
 }
 
@@ -3116,7 +3116,7 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Social media icon shared styles. */
 .mediaSVG {
-    width: 48px;       /* augmente la taille des ic?nes */
+    width: 48px;       /* augmente la taille des icônes */
     height: 48px;
     min-width: 48px;
     min-height: 48px;
@@ -3253,7 +3253,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Bottom Styles)                                                *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Style for a general label on the bottom of the landing view. */
 .bot_label {
@@ -3538,7 +3538,7 @@ input:checked + .toggleSwitchSlider:before {
 }
 
 #landingContainer > #lower > #right {
-    flex: none;                /* emp?che l??tirement de la colonne droite */
+    flex: none;                /* empêche l’étirement de la colonne droite */
 }
 
 #landingContainer > #lower > #right #launch_content {
@@ -3551,9 +3551,8 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Bouton JOUER */
 #launch_button {
-
     position: absolute;
-    left: var(--launch-button-left);
+    left: 0%;
     bottom: 40px;
     transform: translateX(-50%);
     
@@ -3578,9 +3577,7 @@ input:checked + .toggleSwitchSlider:before {
     overflow: hidden;
 }
 
-
-
-/* --- animation sur survol conserv?e --- */
+/* --- animation sur survol conservée --- */
 #launch_button:hover {
     transform: translateX(-50%) scale(1.03);
     box-shadow: 0 0 35px rgba(179, 59, 255, 0.6);
@@ -3602,10 +3599,10 @@ input:checked + .toggleSwitchSlider:before {
     white-space: nowrap;
 
     font-family: 'Almarai', sans-serif;
-    font-weight: 800; /* m?me graisse partout */
+    font-weight: 800; /* même graisse partout */
 
     font-size: 26px;
-    opacity: 0; /* cach?s par d?faut */
+    opacity: 0; /* cachés par défaut */
 }
 
 #launch_button .launch_text {
@@ -3633,7 +3630,7 @@ input:checked + .toggleSwitchSlider:before {
         rgba(255,255,255,0.6) 100%
     );
     opacity: 0.25;
-    filter: blur(8px); /* flou l?g?rement augment? */
+    filter: blur(8px); /* flou légèrement augmenté */
     transition: width 0.3s ease;
     z-index: 1;
     pointer-events: none;
@@ -3735,7 +3732,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Overlay View (overlay.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* * *
 * Overlay View (Main Content)
@@ -4149,7 +4146,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Loading Element (app.ejs)                                                   *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Loading container, placed above everything. */
 
@@ -4214,7 +4211,7 @@ input:checked + .toggleSwitchSlider:before {
 .zooming {
     animation: zooming 2s infinite;
 }
-/* ===== D?sactive compl?tement l'ancien loader ===== */
+/* ===== Désactive complètement l'ancien loader ===== */
 #loadingContainer{ display:none !important; }  /* il existe dans app.ejs */
 #main{ display:block !important; }             /* ceinture+bretelles */
 
@@ -4223,7 +4220,7 @@ input:checked + .toggleSwitchSlider:before {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background: #000;         /* ?tape 1 : fond noir */
+  background: #000;         /* étape 1 : fond noir */
   pointer-events: none;     /* on ne bloque jamais les clics */
   overflow: hidden;
   opacity: 1;               /* pas de fade, uniquement slide */
@@ -4235,13 +4232,13 @@ input:checked + .toggleSwitchSlider:before {
   transition: opacity .35s ease;
 }
 
-/* logo d?j? pos? (r?glable via variables ci-dessous) */
+/* logo déjà posé (réglable via variables ci-dessous) */
 #introOverlay .intro-logo{
-  position: fixed;            /* coordonn?es ?cran */
-  left: 0; top: 0;            /* seront ajust?es en JS */
-  width: auto; height: auto;  /* seront ajust?es en JS */
-  transform: none !important; /* pas de zoom, pas de d?placement */
-  opacity: 1;                 /* toujours visible; masqu? par la plaque */
+  position: fixed;            /* coordonnées écran */
+  left: 0; top: 0;            /* seront ajustées en JS */
+  width: auto; height: auto;  /* seront ajustées en JS */
+  transform: none !important; /* pas de zoom, pas de déplacement */
+  opacity: 1;                 /* toujours visible; masqué par la plaque */
   pointer-events: none;
   will-change: left, top, width, height, opacity;
   z-index: 3;
@@ -4258,8 +4255,8 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Timeline :
    0ms    : grande plaque slide IN (revient de la droite)
-   1150ms : petite plaque (logo) slide OUT => r?v?le le logo
-   2050ms : grande plaque slide OUT => r?v?le le menu
+   1150ms : petite plaque (logo) slide OUT => révèle le logo
+   2050ms : grande plaque slide OUT => révèle le menu
    3050ms : fin
 */
 #introOverlay.run .intro-black{ opacity:0; }
@@ -4276,26 +4273,25 @@ input:checked + .toggleSwitchSlider:before {
 @keyframes intro-logo-out { to  { transform:translateX(-120%);} }
 @keyframes intro-all-out  { to  { transform:translateX(-120%);} }
 
-/* (optionnel) place le logo pr?cis?ment */
+/* (optionnel) place le logo précisément */
 :root{
   --intro-ease: cubic-bezier(.2,.7,.2,1);
   --intro-sweep: 1200ms;
   --intro-exit: 900ms;
-  --launch-button-left: -13%;
 }
 
 /* === SERVER CARDS STYLE === */
 #rightContainer {
   display: flex;
   flex-direction: column;
-  gap: 25px; /* ?? espace entre les cards */
-  margin-right: 50px; /* ?loigne les cards du bord droit sans valeur fixe ?norme */
+  gap: 25px; /* 🔥 espace entre les cards */
+  margin-right: 50px; /* éloigne les cards du bord droit sans valeur fixe énorme */
   margin-top: 60px;
 }
 
 #right {
   position: relative;
-  padding-right: 5px;   /* ?? ?loigne les cards du bord droit */
+  padding-right: 5px;   /* 🔥 éloigne les cards du bord droit */
   display: flex;
   justify-content: flex-end;
 }
@@ -4330,7 +4326,7 @@ input:checked + .toggleSwitchSlider:before {
   flex: 2;
   display: flex;
   flex-direction: column;
-  align-items: center;  /* ?? centre ?Survie? et ?Offline? horizontalement */
+  align-items: center;  /* 🔥 centre “Survie” et “Offline” horizontalement */
   justify-content: center;
   text-align: center;
 }
@@ -4345,7 +4341,7 @@ input:checked + .toggleSwitchSlider:before {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #ff4444; /* rouge par d?faut = offline */
+  background: #ff4444; /* rouge par défaut = offline */
   box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
 }
 
@@ -4399,12 +4395,12 @@ input:checked + .toggleSwitchSlider:before {
 }
 
 :root{
-  --intro-t1: 1100ms;  /* slide-in (droite -> plein ?cran) */
+  --intro-t1: 1100ms;  /* slide-in (droite -> plein écran) */
   --intro-hold: 600ms; /* pause */
   --intro-t2: 1100ms;  /* slide-out (vers la gauche) */
 }
 
-/* Backdrop noir plein ?cran au d?marrage */
+/* Backdrop noir plein écran au démarrage */
 #introBackdrop{
   position: fixed;
   inset: 0;
@@ -4416,39 +4412,39 @@ input:checked + .toggleSwitchSlider:before {
 #introCurtain{
   position: fixed;
   inset: 0;
-  background:#2a2a2a;     /* ta ?plaque? */
-  transform: translateX(100%); /* d?marre hors-?cran ? droite */
+  background:#2a2a2a;     /* ta “plaque” */
+  transform: translateX(100%); /* démarre hors-écran à droite */
   transition: transform var(--intro-t1) cubic-bezier(.2,.8,.2,1);
   z-index: 9998;
   pointer-events: none;
 }
 
-/* Phase 1: la plaque entre et couvre l??cran */
+/* Phase 1: la plaque entre et couvre l’écran */
 #introCurtain.intro-in{ transform: translateX(0); }
 
-/* Phase 2: la plaque repart vers la gauche et r?v?le le menu */
+/* Phase 2: la plaque repart vers la gauche et révèle le menu */
 #introCurtain.intro-out{
   transition-duration: var(--intro-t2);
   transform: translateX(-100%);
 }
 
-/* Logo du menu: m?me ?l?ment, on contr?le juste le zoom */
+/* Logo du menu: même élément, on contrôle juste le zoom */
 #menuBgLogo{
   transform-origin: center center;
   transition: transform 800ms ease;
 }
 
-/* D?but: un peu plus petit (sera r?v?l? par la plaque) */
+/* Début: un peu plus petit (sera révélé par la plaque) */
 body[data-intro="1"] #menuBgLogo{ transform: scale(.92); }
 
-/* Sortie: zoom ? 1 pendant la r?v?lation */
+/* Sortie: zoom à 1 pendant la révélation */
 body[data-intro-zoom="1"] #menuBgLogo{ transform: scale(1); }
 
 #introOverlay .curtain{
   position: absolute;
   top: 0; left: 0; height: 100vh; width: 110vw;
   background: #2b2b2b;     /* ton gris choisi */
-  transform: translateX(100%);           /* enti?rement ? droite, hors ?cran */
+  transform: translateX(100%);           /* entièrement à droite, hors écran */
   will-change: transform;
 }
 
@@ -4477,17 +4473,3 @@ body[data-intro-zoom="1"] #menuBgLogo{ transform: scale(1); }
   from{ transform: translateX(0%); }
   to  { transform: translateX(-110%); }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

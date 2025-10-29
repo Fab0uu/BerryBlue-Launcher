@@ -227,8 +227,8 @@ let win
 function createWindow() {
 
     win = new BrowserWindow({
-        width: 980,
-        height: 552,
+        width: 1000,
+        height: 720,
         icon: getPlatformIcon('icon'),
         frame: false,
         webPreferences: {
@@ -241,9 +241,14 @@ function createWindow() {
     remoteMain.enable(win.webContents)
 
     const data = {
-        bkid: Math.floor((Math.random() * fs.readdirSync(path.join(__dirname, 'app', 'assets', 'images', 'backgrounds')).length)),
-        lang: (str, placeHolders) => LangLoader.queryEJS(str, placeHolders)
+        bkid: Math.floor((Math.random() * fs.readdirSync(path.join(__dirname, 'app', 'assets', 'images')).length)),
+        lang: (str, placeHolders) => LangLoader.queryEJS(str, placeHolders),
+        launcherVersion: require('./package.json').version
     }
+
+    const packageJson = require('./package.json')
+    data.launcherVersion = packageJson.version
+
     Object.entries(data).forEach(([key, val]) => ejse.data(key, val))
 
     win.loadURL(pathToFileURL(path.join(__dirname, 'app', 'app.ejs')).toString())

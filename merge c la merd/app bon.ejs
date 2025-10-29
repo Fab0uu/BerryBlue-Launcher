@@ -26,10 +26,7 @@
         }
     </style>
 </head>
-<div id="introOverlay" aria-hidden="true">
-  <div class="curtain"></div>
-</div>
-<body bkid="<%=bkid%>" data-intro="1">
+<body bkid="<%=bkid%>">
     <%- include('frame') %>
     <div id="main">
         <%- include('welcome') %>
@@ -40,11 +37,6 @@
         <%- include('landing') %>
     </div>
     <%- include('overlay') %>
-
-    <!-- BACKDROP + PLAQUE -->
-    <div id="introBackdrop" aria-hidden="true"></div>
-    <div id="introCurtain" aria-hidden="true"></div>
-
     <div id="loadingContainer">
         <div id="loadingContent">
             <div id="loadSpinnerContainer">

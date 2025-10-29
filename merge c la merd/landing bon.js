@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Script for landing.ejs
  */
 // Requirements
@@ -29,9 +29,9 @@ const {
 
 // Keep reference to Minecraft Process
 let proc
-// NOUVEAU : Ã©tat runtime
-let isLaunching = false        // true = on est en phase de lancement (bouton bloquÃ©)
-let gameIsRunning = false      // true = on pense que le jeu tourne dÃ©jÃ 
+// NOUVEAU : état runtime
+let isLaunching = false        // true = on est en phase de lancement (bouton bloqué)
+let gameIsRunning = false      // true = on pense que le jeu tourne déjà
 
 // Is DiscordRPC enabled
 let hasRPC = false
@@ -60,219 +60,107 @@ const loggerLanding = LoggerUtil.getLogger('Landing')
 document.getElementById('main')?.style.setProperty('display','block','important');
 document.getElementById('landingContainer')?.style.setProperty('display','block','important');
 
+/* === INTRO (2 plaques) — calage exact sur le logo du menu === */
+(() => {
+  const whenDOM = (fn) => (document.readyState === 'loading'
+    ? document.addEventListener('DOMContentLoaded', fn, { once: true })
+    : fn());
 
-// === Intro launcher plan 1-2-3 ===
-// 1) Ã©cran noir
-// 2) slide plaque grise (rÃ©vÃ¨le le logo dÃ©jÃ  en place dans le menu) + zoom du logo 0.88 -> 1.00
-// 3) second slide de la plaque pour rÃ©vÃ©ler le reste du menu
+  whenDOM(() => {
+    // sécurité: montrer l'UI, couper l'ancien loader
+    document.getElementById('main')?.style.setProperty('display','block','important');
+    document.getElementById('landingContainer')?.style.setProperty('display','block','important');
+    document.getElementById('loadingContainer')?.style.setProperty('display','none','important');
 
-(function(){
-  const SWEEP_MS = 1200;   // durÃ©e slide-in
-  const EXIT_MS  = 900;    // durÃ©e slide-out
-  const GAP_MS   = 280;    // delay before the main curtain leaves
-  const LOGO_REVEAL_DELAY = 320;  // hold time before revealing the logo
-  const LOGO_MARGIN = 36;         // padding around the logo curtain
+    const overlay = document.getElementById('introOverlay');
+    if (!overlay) return;
 
-  async function runIntro(){
-    const overlay = document.getElementById('introOverlay')
-    const curtain = overlay ? overlay.querySelector('.curtain') : null
-    const main    = document.getElementById('main')
-    const loader  = document.getElementById('loadingContainer')
-    const backdrop = document.getElementById('introBackdrop')
-    const legacyCurtain = document.getElementById('introCurtain')
-    const body    = document.body
+    const black = overlay.querySelector('.intro-black');
+    const panel = overlay.querySelector('.intro-panel');       // petite plaque (1er slide)
+    const logo  = overlay.querySelector('.intro-logo');        // logo d'intro (doit caler le menu)
+    const big   = overlay.querySelector('.intro-cover-all')    // grande plaque (2e slide)
+                 || (() => {                                  // si pas déjà dans le HTML, on la crée
+                      const el = document.createElement('div');
+                      el.className = 'intro-cover-all';
+                      Object.assign(el.style, {
+                        position:'absolute', inset:'0', background:'#1f1f1f',
+                        transform:'translateX(0%)'
+                      });
+                      overlay.appendChild(el);
+                      return el;
+                    })();
 
-    if(!overlay || !curtain || !main) return
+    // --- calage pixel-par-pixel sur le logo du menu ---
+    const menuLogo = document.getElementById('menuBgLogo');
 
-    const menuLogo = document.getElementById('menuBgLogo')
-    const logoWrapper = menuLogo ? menuLogo.parentElement : null
-    const originalLogoZIndex = menuLogo ? (menuLogo.style.zIndex || '') : ''
-    const originalWrapperZIndex = logoWrapper ? (logoWrapper.style.zIndex || '') : ''
-
-    main.style.display = 'block'
-
-    if(loader) loader.style.display = 'none'
-    if(backdrop) backdrop.style.display = 'none'
-    if(legacyCurtain) legacyCurtain.style.display = 'none'
-
-    body.setAttribute('data-intro', '1')
-    body.removeAttribute('data-intro-zoom')
-
-    overlay.classList.remove('hide')
-    overlay.classList.remove('show')
-    curtain.style.animation = 'none'
-    curtain.offsetHeight
-    curtain.style.animation = ''
-
-    overlay.style.display = 'block'
-    overlay.style.background = '#000'
-
-    const overlayColor = curtain ? window.getComputedStyle(curtain).backgroundColor || '#2b2b2b' : '#2b2b2b'
-    let logoCurtain = null
-    let logoCurtainMetrics = null
-
-    const prepareLogoCurtain = () => {
-      if(!menuLogo) return null
-      const rect = menuLogo.getBoundingClientRect()
-      if(rect.width <= 0 || rect.height <= 0) return null
-
-      const margin = LOGO_MARGIN
-      let top = rect.top - margin
-      let height = rect.height + margin * 2
-      if(top < 0){
-        height += top
-        top = 0
-      }
-      const bottomOverflow = (top + height) - window.innerHeight
-      if(bottomOverflow > 0){
-        height -= bottomOverflow
-      }
-      if(height <= 0) return null
-
-      const width = rect.width + margin * 2
-      const finalLeft = rect.left - margin
-      const offscreenRight = window.innerWidth + width + margin
-      const offscreenLeft = Math.min(-width - margin, finalLeft - width - margin)
-
-      const existing = document.getElementById('introLogoCurtain')
-      if(existing) existing.remove()
-
-      const panel = document.createElement('div')
-      panel.id = 'introLogoCurtain'
-      panel.className = 'logo-curtain'
-      Object.assign(panel.style, {
-        position: 'fixed',
-        top: `${top}px`,
-        width: `${width}px`,
-        height: `${height}px`,
-        left: `${offscreenRight}px`,
-        background: overlayColor,
-        zIndex: '5',
-        pointerEvents: 'none',
-        transition: `left ${SWEEP_MS}ms cubic-bezier(.2,.8,.2,1)`
-      })
-
-      overlay.appendChild(panel)
-
-      requestAnimationFrame(() => {
-        panel.style.left = `${finalLeft}px`
-      })
-
-      return {
-        panel,
-        offscreenLeft
-      }
+    function applyRect(rect){
+      if (!logo) return;
+      logo.style.left   = `${rect.left}px`;
+      logo.style.top    = `${rect.top}px`;
+      logo.style.width  = `${rect.width}px`;
+      logo.style.height = `${rect.height}px`;
     }
 
-    if(menuLogo){
-      const waitForLogoReady = () => {
-        if(menuLogo.complete && menuLogo.naturalWidth > 0) return Promise.resolve()
-        if(typeof menuLogo.decode === 'function'){
-          return menuLogo.decode().catch(() => {})
+    function syncLogoNow(){
+      if (!menuLogo || !logo) return true; // rien à faire (pas bloquant)
+      const r = menuLogo.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0){
+        applyRect(r);
+        return true;
+      }
+      return false;
+    }
+
+    // on s'assure que le logo du menu a une taille avant de lancer l'anim
+    const startTimeline = () => requestAnimationFrame(() => overlay.classList.add('run'));
+
+    if (!syncLogoNow()){
+      const t0 = performance.now();
+      const id = setInterval(() => {
+        if (syncLogoNow() || performance.now() - t0 > 1000) {
+          clearInterval(id);
+          startTimeline();
         }
-        return new Promise(resolve => {
-          const done = () => {
-            menuLogo.removeEventListener('load', done)
-            menuLogo.removeEventListener('error', done)
-            resolve()
-          }
-          menuLogo.addEventListener('load', done, { once: true })
-          menuLogo.addEventListener('error', done, { once: true })
-        })
-      }
-
-      try {
-        await Promise.race([
-          waitForLogoReady(),
-          new Promise(resolve => setTimeout(resolve, 800))
-        ])
-      } catch {
-        // ignore, the curtain keeps the flash hidden
-      }
-
-      const metrics = prepareLogoCurtain()
-      if(metrics){
-        logoCurtain = metrics.panel
-        logoCurtainMetrics = metrics
-      }
+      }, 16);
+    } else {
+      startTimeline();
     }
 
-    if(menuLogo && !logoCurtain){
-      const metrics = prepareLogoCurtain()
-      if(metrics){
-        logoCurtain = metrics.panel
-        logoCurtainMetrics = metrics
+    // on recale si la fenêtre est redimensionnée pendant l'intro
+    const onResize = () => { if (menuLogo) applyRect(menuLogo.getBoundingClientRect()); };
+    window.addEventListener('resize', onResize);
+
+    // --- séquence de fin: la grande plaque passe AU-DESSUS et "emporte" le logo ---
+    big.addEventListener('animationstart', (ev) => {
+      if (ev.animationName === 'intro-all-out') {
+        big.classList.add('above');      // au-dessus du logo => le logo disparaît avec la plaque
       }
-    }
+    });
 
-    overlay.classList.add('show')
+    big.addEventListener('animationend', (ev) => {
+        if (ev.animationName === 'intro-all-out') {
+            // Attendre 1s APRÈS la fin du dernier slide…
+            setTimeout(() => {
+            // …puis on fade le logo…
+            if (logo) logo.style.opacity = '0';
+            // …et on retire l’overlay juste après le fondu.
+            setTimeout(() => {
+                overlay.remove();
+                window.removeEventListener('resize', onResize);
+            }, 30000); // durée du fade (voir transition CSS)
+            }, 0); // <-- délai demandé : 1 seconde
+        }
+    });
 
+    // filet de sécu (si quelque chose bloquait)
     setTimeout(() => {
-      const revealLogo = () => {
-        body.setAttribute('data-intro-zoom', '1')
-        body.removeAttribute('data-intro')
-
-        if(menuLogo){
-          menuLogo.style.zIndex = '10001'
-          if(logoWrapper){
-            logoWrapper.style.zIndex = '10001'
-          }
-        }
-
-        if(logoCurtain && logoCurtainMetrics){
-          logoCurtain.style.transition = `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
-          requestAnimationFrame(() => {
-            logoCurtain.style.left = `${logoCurtainMetrics.offscreenLeft}px`
-          })
-        }
+      if (overlay?.isConnected){
+        overlay.remove();
+        window.removeEventListener('resize', onResize);
       }
-
-      setTimeout(() => {
-        revealLogo()
-      }, LOGO_REVEAL_DELAY)
-
-      setTimeout(() => {
-        overlay.style.background = 'transparent'
-        overlay.classList.remove('show')
-        overlay.classList.add('hide')
-
-        setTimeout(() => {
-          overlay.style.display = 'none'
-          overlay.classList.remove('hide')
-
-          if(logoCurtain){
-            logoCurtain.remove()
-            logoCurtain = null
-            logoCurtainMetrics = null
-          }
-
-          if(menuLogo){
-            if(originalLogoZIndex){
-              menuLogo.style.zIndex = originalLogoZIndex
-            } else {
-              menuLogo.style.removeProperty('z-index')
-            }
-          }
-          if(logoWrapper){
-            if(originalWrapperZIndex){
-              logoWrapper.style.zIndex = originalWrapperZIndex
-            } else {
-              logoWrapper.style.removeProperty('z-index')
-            }
-          }
-        }, EXIT_MS)
-      }, LOGO_REVEAL_DELAY + GAP_MS)
-    }, SWEEP_MS)
-  }
-
-  // Lance lâ€™intro au chargement du DOM.
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', runIntro, { once: true })
-  } else {
-    runIntro()
-  }
+    }, 7000);
+  });
 })();
-
 
 /* Launch Progress Wrapper Functions */
 
@@ -316,9 +204,9 @@ function setLaunchDetails(details){
 }
 
 /**
- * Met Ã  jour la progression visuelle.
- * - si percent == 0 â†’ on garde "Chargement..."
- * - si percent > 0 â†’ on affiche "xx%"
+ * Met à jour la progression visuelle.
+ * - si percent == 0 → on garde "Chargement..."
+ * - si percent > 0 → on affiche "xx%"
  */
 function setLaunchPercentage(percent){
     const btn = document.getElementById('launch_button')
@@ -327,11 +215,11 @@ function setLaunchPercentage(percent){
     const progText    = btn.querySelector('.launch_progress_text')
     const fill        = btn.querySelector('.launch_fill')
 
-    // Tant qu'on est en lancement/tÃ©lÃ©chargement, le bouton ne doit PAS Ãªtre cliquable.
+    // Tant qu'on est en lancement/téléchargement, le bouton ne doit PAS être cliquable.
     setLaunchEnabled(false)
 
     if (percent === 0){
-        // Juste aprÃ¨s clic :
+        // Juste après clic :
         // - cacher "JOUER"
         // - afficher "Chargement..."
         // - cacher le pourcentage
@@ -340,7 +228,7 @@ function setLaunchPercentage(percent){
         if(progText)    progText.style.opacity = '0'
         if(fill)        fill.style.width = '0%'
     } else {
-        // TÃ©lÃ©chargement effectif avec progression :
+        // Téléchargement effectif avec progression :
         // - cacher "JOUER"
         // - cacher "Chargement..."
         // - afficher "XX%"
@@ -361,11 +249,11 @@ function setLaunchPercentage(percent){
 
 
 /**
- * Remet le bouton dans son Ã©tat neutre visuellement :
+ * Remet le bouton dans son état neutre visuellement :
  * - "JOUER" visible
- * - "Chargement..." masquÃ©
- * - % masquÃ©
- * - barre blanche vidÃ©e
+ * - "Chargement..." masqué
+ * - % masqué
+ * - barre blanche vidée
  */
 function resetLaunchButtonUI() {
     const btn = document.getElementById('launch_button')
@@ -398,23 +286,23 @@ function resetLaunchButtonUI() {
 }
 
 function promptAlreadyRunning() {
-    // on remet le bouton dans l'Ã©tat normal AVANT d'afficher la pop-up
+    // on remet le bouton dans l'état normal AVANT d'afficher la pop-up
     resetLaunchButtonUI()
 
     setOverlayContent(
-        'Le jeu est dÃ©jÃ  lancÃ©',
-        'Une instance du jeu semble dÃ©jÃ  en cours. Lancer une deuxiÃ¨me instance peut causer des problÃ¨mes. Tu veux quand mÃªme lancer une autre instance ?',
-        'Lancer quand mÃªme',
+        'Le jeu est déjà lancé',
+        'Une instance du jeu semble déjà en cours. Lancer une deuxième instance peut causer des problèmes. Tu veux quand même lancer une autre instance ?',
+        'Lancer quand même',
         'Ne pas relancer'
     )
 
-    // si lâ€™utilisateur CONFIRME: on lance quand mÃªme
+    // si l’utilisateur CONFIRME: on lance quand même
     setOverlayHandler(async () => {
         toggleOverlay(false)
         await startLaunchSequence()
     })
 
-    // si lâ€™utilisateur REFUSE ou ferme avec Ã‰chap: on reste tranquille
+    // si l’utilisateur REFUSE ou ferme avec Échap: on reste tranquille
     setDismissHandler(() => {
         toggleOverlay(false)
         // on NE relance PAS le jeu
@@ -422,7 +310,7 @@ function promptAlreadyRunning() {
         // le bouton reste en mode "JOUER" actif
     })
 
-    // on affiche lâ€™overlay avec les deux boutons
+    // on affiche l’overlay avec les deux boutons
     toggleOverlay(true, true)
 }
 
@@ -430,7 +318,7 @@ async function startLaunchSequence() {
     if (isLaunching) return
     isLaunching = true
 
-    // bloque le bouton immÃ©diatement
+    // bloque le bouton immédiatement
     setLaunchEnabled(false)
 
     loggerLanding.info('Launching game..')
@@ -465,7 +353,7 @@ async function startLaunchSequence() {
             Lang.queryJS('landing.launch.failureText')
         )
 
-        // Ã©chec -> on rÃ©active le bouton et on remet l'Ã©tat visuel d'origine
+        // échec -> on réactive le bouton et on remet l'état visuel d'origine
         resetLaunchButtonUI()
     }
 }
@@ -477,21 +365,21 @@ function isGameRunning(){
 async function beginLaunchSequence(){
     loggerLanding.info('Launching game..')
     try {
-        // EmpÃªche le spam clic immÃ©diatement.
+        // Empêche le spam clic immédiatement.
         setLaunchEnabled(false)
 
         const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
         const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
 
         if(jExe == null){
-            // pas de Java -> scan systÃ¨me
+            // pas de Java -> scan système
             await asyncSystemScan(server.effectiveJavaOptions)
         } else {
 
             setLaunchDetails(Lang.queryJS('landing.launch.pleaseWait'))
             toggleLaunchArea(true)
 
-            // passe le bouton en mode "Chargement..." instantanÃ©ment
+            // passe le bouton en mode "Chargement..." instantanément
             setLaunchPercentage(0)
 
             const details = await validateSelectedJvm(
@@ -545,13 +433,13 @@ function setLaunchEnabled(val){
 // Bind launch button
 // Bind launch button
 document.getElementById('launch_button').addEventListener('click', async e => {
-    // Si un process jeu existe et qu'il n'est pas encore terminÃ© -> popup de confirmation.
+    // Si un process jeu existe et qu'il n'est pas encore terminé -> popup de confirmation.
     if (typeof proc !== 'undefined' && proc && proc.exitCode === null) {
         setOverlayContent(
-            'Le jeu est dÃ©jÃ  en cours',
-            'Minecraft semble dÃ©jÃ  lancÃ©. Relancer peut ouvrir une deuxiÃ¨me instance.',
+            'Le jeu est déjà en cours',
+            'Minecraft semble déjà lancé. Relancer peut ouvrir une deuxième instance.',
             'Ne pas relancer le jeu',
-            'Relancer quand mÃªme'
+            'Relancer quand même'
         )
 
         // Gros bouton principal : NE PAS relancer.
@@ -567,7 +455,7 @@ document.getElementById('launch_button').addEventListener('click', async e => {
             }
         })
 
-        // Lien secondaire : relancer quand mÃªme (force un nouveau lancement).
+        // Lien secondaire : relancer quand même (force un nouveau lancement).
         setDismissHandler(async () => {
             toggleOverlay(false)
             await actuallyStartLaunch()
@@ -583,8 +471,8 @@ document.getElementById('launch_button').addEventListener('click', async e => {
 
 async function actuallyStartLaunch(){
     loggerLanding.info('Launching game..')
-    // DÃ©sactiver le bouton pendant le chargement (sans lâ€™assombrir si ton CSS a Ã©tÃ© ajustÃ©).
-    setLaunchEnabled(true)  // sâ€™assure que lâ€™attribut existe
+    // Désactiver le bouton pendant le chargement (sans l’assombrir si ton CSS a été ajusté).
+    setLaunchEnabled(true)  // s’assure que l’attribut existe
     document.getElementById('launch_button').disabled = true
 
     try {
@@ -616,7 +504,7 @@ async function actuallyStartLaunch(){
             Lang.queryJS('landing.launch.failureTitle'),
             Lang.queryJS('landing.launch.failureText')
         )
-        // En cas dâ€™erreur immÃ©diate, on rÃ©active le bouton.
+        // En cas d’erreur immédiate, on réactive le bouton.
         document.getElementById('launch_button').disabled = false
     }
 }
@@ -631,7 +519,7 @@ if (settingsBtn) {
     }
 }
 
-// Bind avatar overlay button (dÃ©sactivÃ© si inexistant)
+// Bind avatar overlay button (désactivé si inexistant)
 const avatarOverlay = document.getElementById('avatarOverlay')
 if (avatarOverlay) {
     avatarOverlay.onclick = async e => {
@@ -648,7 +536,7 @@ function updateSelectedAccount(authUser) {
     const userText = document.getElementById('user_text')
     const avatarContainer = document.getElementById('avatarContainer')
 
-    if (!userText || !avatarContainer) return // Ã©vite tout plantage si supprimÃ©
+    if (!userText || !avatarContainer) return // évite tout plantage si supprimé
 
     let username = Lang.queryJS('landing.selectedAccount.noAccountSelected')
     if (authUser != null) {
@@ -665,7 +553,7 @@ if (typeof updateSelectedAccount === 'function') {
     try { updateSelectedAccount(ConfigManager.getSelectedAccount()) } catch(e) { console.warn('updateSelectedAccount skipped', e) }
 }
 
-// Force le serveur unique dÃ¨s le chargement
+// Force le serveur unique dès le chargement
 document.addEventListener('DOMContentLoaded', () => {
     resetLaunchButtonUI()
 })
@@ -701,8 +589,8 @@ function updateSelectedServer(serv) {
 //     loggerLanding.info('Refreshing Mojang Statuses..')
 
 //     let status = 'grey'
-//     let tooltipEssentialHTML = '
-//     let tooltipNonEssentialHTML = '
+//     let tooltipEssentialHTML = ''
+//     let tooltipNonEssentialHTML = ''
 
 //     const response = await MojangRestAPI.status()
 //     let statuses
@@ -770,60 +658,60 @@ const refreshServerStatus = async (fade = false) => {
     let survie_count = 0;
 
     try {
-        // RÃ©cupÃ¨re le fichier JSON
+        // Récupère le fichier JSON
         const response = await fetch(status);
 
-        // Si la rÃ©ponse est OK, on analyse le JSON
+        // Si la réponse est OK, on analyse le JSON
         if (response.ok) {
             const data = await response.json();
 
-            // RÃ©cupÃ©ration des valeurs pour Proxy-MC, MC-Crea-Mohist, et MC-Survie
+            // Récupération des valeurs pour Proxy-MC, MC-Crea-Mohist, et MC-Survie
             proxyMC = data["Proxy-MC"] || false;
             mcCreaMohist = data["MC-Crea-Mohist"] || false;
             mcSurvie = data["MC-Survie"] || false;
 
-            // Affichage des rÃ©sultats dans la console (ou utilisation selon tes besoins)
+            // Affichage des résultats dans la console (ou utilisation selon tes besoins)
             console.log("Proxy-MC: ", proxyMC);
             console.log("MC-Crea-Mohist: ", mcCreaMohist);
             console.log("MC-Survie: ", mcSurvie);
 
         } else {
-            console.error('Erreur lors de la rÃ©cupÃ©ration du fichier JSON:', response.statusText);
+            console.error('Erreur lors de la récupération du fichier JSON:', response.statusText);
         }
 
         try {
-            // Utilisation de fetch pour rÃ©cupÃ©rer le fichier
+            // Utilisation de fetch pour récupérer le fichier
             const response = await fetch(player_count_survie);
     
-            // Si la rÃ©ponse est OK, on rÃ©cupÃ¨re le texte
+            // Si la réponse est OK, on récupère le texte
             if (response.ok && mcSurvie) {
                 const text = await response.text();
                 survie_count = parseInt(text, 10) || 0;
                 console.log("Contenu du fichier survie:", text);
     
             } else {
-                console.error('Erreur lors de la rÃ©cupÃ©ration du fichier texte:', response.statusText);
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
             }
         } catch (error) {
-            console.error('Erreur lors de la requÃªte:', error);
+            console.error('Erreur lors de la requête:', error);
         }
 
         try {
-            // Utilisation de fetch pour rÃ©cupÃ©rer le fichier
+            // Utilisation de fetch pour récupérer le fichier
             const response = await fetch(player_count_crea);
     
-            // Si la rÃ©ponse est OK, on rÃ©cupÃ¨re le texte
+            // Si la réponse est OK, on récupère le texte
             if (response.ok && mcCreaMohist) {
                 const text = await response.text();
                 crea_count = parseInt(text, 10) || 0;
                 console.log("Contenu du fichier crea:", text);
     
             } else {
-                console.error('Erreur lors de la rÃ©cupÃ©ration du fichier texte:', response.statusText);
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
             }
 
         } catch (error) {
-            console.error('Erreur lors de la requÃªte:', error);
+            console.error('Erreur lors de la requête:', error);
         }
 
         console.log("crea_count : ", crea_count, ", survie_count : ", survie_count)
@@ -836,7 +724,7 @@ const refreshServerStatus = async (fade = false) => {
             pVal = total_player  + ' / 500'           
         }
     } catch (error) {
-        console.error('Erreur lors de la requÃªte:', error);
+        console.error('Erreur lors de la requête:', error);
     }
 
     if(fade){
@@ -867,7 +755,7 @@ const refreshServerStatus = async (fade = false) => {
         </div>
         <div class="ServerStatusContainer">
         <span class="ServerStatusIcon" style="color: ${getColor(mcCreaMohist)}; font-size: 24px; vertical-align: middle;">&#8226;</span>
-        <span class="ServerStatusName">CrÃ©atif</span>
+        <span class="ServerStatusName">Créatif</span>
         </div>
         `
 
@@ -1206,10 +1094,10 @@ async function dlAsync(login = true) {
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
 
-        // â¬‡â¬‡â¬‡ MODIFIÃ‰ ICI
+        // ⬇⬇⬇ MODIFIÉ ICI
         const onLoadComplete = () => {
-            // le client est parti, on considÃ¨re que le jeu tourne maintenant.
-            // on remet tout de suite le bouton dans l'Ã©tat "JOUER"
+            // le client est parti, on considère que le jeu tourne maintenant.
+            // on remet tout de suite le bouton dans l'état "JOUER"
             // mais gameIsRunning reste true => si tu recliques, tu auras la popup.
             resetLaunchButtonUI()
 
@@ -1221,7 +1109,7 @@ async function dlAsync(login = true) {
             proc.stdout.removeListener('data', tempListener)
             proc.stderr.removeListener('data', gameErrorListener)
         }
-        // â¬†â¬†â¬† FIN MODIF
+        // ⬆⬆⬆ FIN MODIF
 
         const start = Date.now()
 
@@ -1297,7 +1185,7 @@ async function dlAsync(login = true) {
 
                 proc = null
 
-                // on remet le bouton "JOUER" (au cas oÃ¹)
+                // on remet le bouton "JOUER" (au cas où)
                 resetLaunchButtonUI()
             })
 
@@ -1309,7 +1197,7 @@ async function dlAsync(login = true) {
                 Lang.queryJS('landing.dlAsync.checkConsoleForDetails')
             )
 
-            // en cas dâ€™erreur, bouton remis normal
+            // en cas d’erreur, bouton remis normal
             resetLaunchButtonUI()
         }
     }
@@ -1713,10 +1601,5 @@ try {
   if (versionSpan) versionSpan.textContent = version
   console.log('Launcher version:', version)
 } catch (err) {
-  console.error('Impossible de rÃ©cupÃ©rer la version du launcher:', err)
+  console.error('Impossible de récupérer la version du launcher:', err)
 }
-
-
-
-
-

@@ -12,7 +12,7 @@ body{
  *                                                                             *
  * Fonts                                                                       *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 @font-face {
     font-family: 'Avenir Book';
@@ -38,7 +38,7 @@ body{
  *                                                                             *
  * Element Styles                                                              *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
  
 /* Reset body, html, and div presets. */
 body, html, div {
@@ -67,7 +67,7 @@ body, button {
  *                                                                             *
  * Frame Styles (frame.ejs)                                                    *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Frame Bar */
 #frameBar {
@@ -225,7 +225,7 @@ body, button {
  *                                                                             *
  * Welcome View (welcome.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #welcomeContainer {
     position: relative;
@@ -379,7 +379,7 @@ body, button {
  *                                                                             *
  * Login View (login.ejs)                                                      *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Styles for dimmer login span. */
 .loginSpanDim {
@@ -889,7 +889,7 @@ body, button {
  *                                                                             *
  * Waiting View (waiting.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #waitingContainer {
     position: relative;
@@ -968,7 +968,7 @@ body, button {
  *                                                                             *
  * Login Options View (loginOptions.ejs)                                       *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 #loginOptionsContainer {
     position: relative;
@@ -1058,7 +1058,7 @@ body, button {
  *                                                                             *
  * Settings View (sttings.ejs)                                                 *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main settings container. */
 #settingsContainer {
@@ -2455,7 +2455,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Structural Styles)                                            *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main content container. */
 #landingContainer {
@@ -2542,14 +2542,14 @@ input:checked + .toggleSwitchSlider:before {
     height: 100%;
     width: 33%;
     display: inline-flex;
-    flex: none;                /* ?vite l'?tirement */
+    flex: none;                /* évite l'étirement */
 }
 
 /*******************************************************************************
  *                                                                             *
  * Landing View (News Styles)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Main container. */
 #newsContainer {
@@ -2868,7 +2868,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Top Styles)                                                   *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* * *
 * Landing View (Top Styles) | Left Content
@@ -3073,7 +3073,6 @@ input:checked + .toggleSwitchSlider:before {
     width: 100%;
     transform: translate(-130px, 60px);
     z-index: 10000;
-    margin-left: 20px;
 }
 
 /* Social Media Icon division containers. */
@@ -3098,11 +3097,11 @@ input:checked + .toggleSwitchSlider:before {
 .mediaContainer:hover {
     backdrop-filter: blur(4px) brightness(1.4);
     background: rgba(255, 255, 255, 0.08);
-    transform: none;
+    transform: none; /* désactive le shrink */
 }
 
 .mediaContainer:hover .mediaSVG {
-    transform: none !important; /* emp?che le shrink */
+    transform: none !important; /* empêche le shrink */
     filter: brightness(2) drop-shadow(0 0 8px rgba(255,255,255,0.8));
 }
 
@@ -3116,7 +3115,7 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Social media icon shared styles. */
 .mediaSVG {
-    width: 48px;       /* augmente la taille des ic?nes */
+    width: 48px;       /* augmente la taille des icônes */
     height: 48px;
     min-width: 48px;
     min-height: 48px;
@@ -3253,7 +3252,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Landing View (Bottom Styles)                                                *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Style for a general label on the bottom of the landing view. */
 .bot_label {
@@ -3538,7 +3537,7 @@ input:checked + .toggleSwitchSlider:before {
 }
 
 #landingContainer > #lower > #right {
-    flex: none;                /* emp?che l??tirement de la colonne droite */
+    flex: none;                /* empêche l’étirement de la colonne droite */
 }
 
 #landingContainer > #lower > #right #launch_content {
@@ -3551,9 +3550,8 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Bouton JOUER */
 #launch_button {
-
     position: absolute;
-    left: var(--launch-button-left);
+    left: 0%;
     bottom: 40px;
     transform: translateX(-50%);
     
@@ -3578,9 +3576,7 @@ input:checked + .toggleSwitchSlider:before {
     overflow: hidden;
 }
 
-
-
-/* --- animation sur survol conserv?e --- */
+/* --- animation sur survol conservée --- */
 #launch_button:hover {
     transform: translateX(-50%) scale(1.03);
     box-shadow: 0 0 35px rgba(179, 59, 255, 0.6);
@@ -3602,10 +3598,10 @@ input:checked + .toggleSwitchSlider:before {
     white-space: nowrap;
 
     font-family: 'Almarai', sans-serif;
-    font-weight: 800; /* m?me graisse partout */
+    font-weight: 800; /* même graisse partout */
 
     font-size: 26px;
-    opacity: 0; /* cach?s par d?faut */
+    opacity: 0; /* cachés par défaut */
 }
 
 #launch_button .launch_text {
@@ -3633,7 +3629,7 @@ input:checked + .toggleSwitchSlider:before {
         rgba(255,255,255,0.6) 100%
     );
     opacity: 0.25;
-    filter: blur(8px); /* flou l?g?rement augment? */
+    filter: blur(8px); /* flou légèrement augmenté */
     transition: width 0.3s ease;
     z-index: 1;
     pointer-events: none;
@@ -3735,7 +3731,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Overlay View (overlay.ejs)                                                  *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* * *
 * Overlay View (Main Content)
@@ -4149,7 +4145,7 @@ input:checked + .toggleSwitchSlider:before {
  *                                                                             *
  * Loading Element (app.ejs)                                                   *
  *                                                                             *
-**************************************************************************/
+ ******************************************************************************/
 
 /* Loading container, placed above everything. */
 
@@ -4214,19 +4210,13 @@ input:checked + .toggleSwitchSlider:before {
 .zooming {
     animation: zooming 2s infinite;
 }
-/* ===== D?sactive compl?tement l'ancien loader ===== */
+/* ===== Désactive complètement l'ancien loader ===== */
 #loadingContainer{ display:none !important; }  /* il existe dans app.ejs */
 #main{ display:block !important; }             /* ceinture+bretelles */
 
 /* ===== Intro overlay (deux plaques) ===== */
 #introOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: #000;         /* ?tape 1 : fond noir */
-  pointer-events: none;     /* on ne bloque jamais les clics */
-  overflow: hidden;
-  opacity: 1;               /* pas de fade, uniquement slide */
+  position: fixed; inset: 0; z-index: 999999; pointer-events: none; overflow: hidden;
 }
 
 /* couche noire anti-flash */
@@ -4235,13 +4225,13 @@ input:checked + .toggleSwitchSlider:before {
   transition: opacity .35s ease;
 }
 
-/* logo d?j? pos? (r?glable via variables ci-dessous) */
+/* logo déjà posé (réglable via variables ci-dessous) */
 #introOverlay .intro-logo{
-  position: fixed;            /* coordonn?es ?cran */
-  left: 0; top: 0;            /* seront ajust?es en JS */
-  width: auto; height: auto;  /* seront ajust?es en JS */
-  transform: none !important; /* pas de zoom, pas de d?placement */
-  opacity: 1;                 /* toujours visible; masqu? par la plaque */
+  position: fixed;            /* coordonnées écran */
+  left: 0; top: 0;            /* seront ajustées en JS */
+  width: auto; height: auto;  /* seront ajustées en JS */
+  transform: none !important; /* pas de zoom, pas de déplacement */
+  opacity: 1;                 /* toujours visible; masqué par la plaque */
   pointer-events: none;
   will-change: left, top, width, height, opacity;
   z-index: 3;
@@ -4258,8 +4248,8 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Timeline :
    0ms    : grande plaque slide IN (revient de la droite)
-   1150ms : petite plaque (logo) slide OUT => r?v?le le logo
-   2050ms : grande plaque slide OUT => r?v?le le menu
+   1150ms : petite plaque (logo) slide OUT => révèle le logo
+   2050ms : grande plaque slide OUT => révèle le menu
    3050ms : fin
 */
 #introOverlay.run .intro-black{ opacity:0; }
@@ -4276,95 +4266,134 @@ input:checked + .toggleSwitchSlider:before {
 @keyframes intro-logo-out { to  { transform:translateX(-120%);} }
 @keyframes intro-all-out  { to  { transform:translateX(-120%);} }
 
-/* (optionnel) place le logo pr?cis?ment */
+/* (optionnel) place le logo précisément */
 :root{
-  --intro-ease: cubic-bezier(.2,.7,.2,1);
-  --intro-sweep: 1200ms;
-  --intro-exit: 900ms;
-  --launch-button-left: -13%;
+  /* ajuste si besoin */
+  --intro-logo-left: 33%;
+  --intro-logo-top:  31%;
+  --intro-logo-width: 420px;
+  --intro-cover-all-bg:  #24202b;  /* grande plaque */
+  --intro-cover-logo-bg: #141414;  /* masque du logo */
 }
 
-/* === SERVER CARDS STYLE === */
-#rightContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 25px; /* ?? espace entre les cards */
-  margin-right: 50px; /* ?loigne les cards du bord droit sans valeur fixe ?norme */
-  margin-top: 60px;
+#rightPane {
+  margin-top: 120px;
+  padding: 24px 26px;
+  width: 200px;
+
+  /* déplacement vers la gauche */
+  margin-left: -200px; /* ajuste la valeur selon ton rendu */
+
+  /* encadrement */
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 24px;
+  background: rgba(15, 17, 25, 0.25);
+  backdrop-filter: blur(6px);
+  box-shadow:
+    inset 0 0 40px rgba(120, 150, 255, 0.08),
+    0 8px 20px rgba(0, 0, 0, 0.25);
+
+  font-family: 'DTLProkyonTCapsLight', sans-serif;
+  letter-spacing: .05em;
 }
 
-#right {
-  position: relative;
-  padding-right: 5px;   /* ?? ?loigne les cards du bord droit */
-  display: flex;
-  justify-content: flex-end;
+.rs-title,
+.rs-name,
+.rs-status {
+  font-family: inherit; /* reprend celle du parent */
 }
 
-.serverCard {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 14px;
-  padding: 14px 20px;
-  width: 220px;
-  height: 70px;
-  backdrop-filter: blur(10px);
-  transition: background 0.3s ease;
-}
-
-.serverCard:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.serverCard-left {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.serverCard-right {
-  flex: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;  /* ?? centre ?Survie? et ?Offline? horizontalement */
-  justify-content: center;
+.rs-title{
+  text-transform: uppercase;
+  font-weight: 700;
+  font-size: 25px;
+  color:#f3f4f6;
+  margin-top: -5px;
+  margin-bottom:10px;
+  text-shadow:0 0 8px rgba(255,255,255,.1);
   text-align: center;
 }
 
-.serverIcon {
-  width: 28px;
-  height: 28px;
-  filter: brightness(1.1);
+.rs-name{
+  grid-column: 2;
+  grid-row: 1;
+  font-family:'DTLProkyonTCapsLight',sans-serif;
+  color:#fff;
+  font-size:18px;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  text-align:left;
 }
 
-.serverStatusDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #ff4444; /* rouge par d?faut = offline */
-  box-shadow: 0 0 6px rgba(255, 0, 0, 0.6);
+.rs-status{
+  grid-column: 2;
+  grid-row: 2;
+  text-transform:uppercase;
+  font-family:'DTLProkyonTCapsLight',sans-serif;
+  font-size:15px;
+  color:#e5e7ef;
+  text-align:left;
+  letter-spacing:.04em;
 }
 
-/* Textes */
-.serverName {
-  font-family: 'DTLProkyonTCapsLight';
-  font-size: 14px;
+.rs-card{
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  padding:14px 18px;
+  border-radius:20px;
+  border:1.8px solid rgba(255,255,255,.6);
+  background:rgba(15,17,25,.3);
+  backdrop-filter:blur(4px);
+  box-shadow:0 4px 18px rgba(0,0,0,.25);
+}
+
+/* deux lignes superposées */
+.rs-line{
+  display:grid;
+  grid-template-columns: 1fr 2fr; /* 1/3 pour l'icône ou le rond, 2/3 pour le texte */
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:6px;
+}
+
+.rs-icon{
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
   color: #fff;
-  letter-spacing: 0.06em;
-  font-weight: 600;
+  background: linear-gradient(145deg,rgba(170,210,255,.25),rgba(255,140,200,.15));
+  border: 1px solid rgba(255,255,255,.3);
 }
 
-.serverStatus {
-  font-family: 'DTLProkyonTCapsLight';
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-top: 2px;
+.rs-dot{
+  grid-column: 1;
+  grid-row: 2;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 0, 0, 0.6);
+  box-shadow: 0 0 10px rgba(255, 89, 89, 0.25);
+  margin-left: 13px;
 }
 
+.rs-card .rs-line:last-child{
+  margin-top:10px;
+}
+
+.rs-text, .rs-status{
+  display:flex;
+  flex-direction:column;
+  align-items:center;   /* <-- centré horizontalement */
+  justify-content:center; /* <-- centré verticalement */
+  text-align:center;    /* <-- aligne le texte au centre */
+  width:100%;
+}
 
 #copyrightText {
   position: absolute;
@@ -4397,97 +4426,3 @@ input:checked + .toggleSwitchSlider:before {
   text-shadow: 0 0 8px rgba(255,255,255,0.15);
   white-space: nowrap; 
 }
-
-:root{
-  --intro-t1: 1100ms;  /* slide-in (droite -> plein ?cran) */
-  --intro-hold: 600ms; /* pause */
-  --intro-t2: 1100ms;  /* slide-out (vers la gauche) */
-}
-
-/* Backdrop noir plein ?cran au d?marrage */
-#introBackdrop{
-  position: fixed;
-  inset: 0;
-  background:#000;
-  z-index: 9997;
-}
-
-/* Plaque grise par-dessus tout */
-#introCurtain{
-  position: fixed;
-  inset: 0;
-  background:#2a2a2a;     /* ta ?plaque? */
-  transform: translateX(100%); /* d?marre hors-?cran ? droite */
-  transition: transform var(--intro-t1) cubic-bezier(.2,.8,.2,1);
-  z-index: 9998;
-  pointer-events: none;
-}
-
-/* Phase 1: la plaque entre et couvre l??cran */
-#introCurtain.intro-in{ transform: translateX(0); }
-
-/* Phase 2: la plaque repart vers la gauche et r?v?le le menu */
-#introCurtain.intro-out{
-  transition-duration: var(--intro-t2);
-  transform: translateX(-100%);
-}
-
-/* Logo du menu: m?me ?l?ment, on contr?le juste le zoom */
-#menuBgLogo{
-  transform-origin: center center;
-  transition: transform 800ms ease;
-}
-
-/* D?but: un peu plus petit (sera r?v?l? par la plaque) */
-body[data-intro="1"] #menuBgLogo{ transform: scale(.92); }
-
-/* Sortie: zoom ? 1 pendant la r?v?lation */
-body[data-intro-zoom="1"] #menuBgLogo{ transform: scale(1); }
-
-#introOverlay .curtain{
-  position: absolute;
-  top: 0; left: 0; height: 100vh; width: 110vw;
-  background: #2b2b2b;     /* ton gris choisi */
-  transform: translateX(100%);           /* enti?rement ? droite, hors ?cran */
-  will-change: transform;
-}
-
-#introOverlay .logo-curtain{
-  position: fixed;
-  background: #2b2b2b;
-  box-shadow: inset 0 0 40px rgba(0,0,0,0.25);
-  border-radius: 22px;
-  pointer-events: none;
-  will-change: left;
-}
-
-#introOverlay.show .curtain{
-  animation: intro-curtain-in var(--intro-sweep) var(--intro-ease) forwards;
-}
-
-#introOverlay.hide .curtain{
-  animation: intro-curtain-out var(--intro-exit) var(--intro-ease) forwards;
-}
-
-@keyframes intro-curtain-in{
-  from{ transform: translateX(100%); }
-  to  { transform: translateX(0%); }
-}
-@keyframes intro-curtain-out{
-  from{ transform: translateX(0%); }
-  to  { transform: translateX(-110%); }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
