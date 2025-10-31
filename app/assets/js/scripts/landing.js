@@ -1,7 +1,4 @@
-﻿/**
- * Script for landing.ejs
- */
-// Requirements
+﻿// Requirements
 const { URL }                 = require('url')
 const {
     MojangRestAPI,
@@ -29,9 +26,9 @@ const {
 
 // Keep reference to Minecraft Process
 let proc
-// NOUVEAU : Ã©tat runtime
-let isLaunching = false        // true = on est en phase de lancement (bouton bloquÃ©)
-let gameIsRunning = false      // true = on pense que le jeu tourne dÃ©jÃ 
+// NOUVEAU : état runtime
+let isLaunching = false        // true = on est en phase de lancement (bouton bloqué)
+let gameIsRunning = false      // true = on pense que le jeu tourne déjà
 
 // Is DiscordRPC enabled
 let hasRPC = false
@@ -62,13 +59,13 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
 
 
 // === Intro launcher plan 1-2-3 ===
-// 1) Ã©cran noir
-// 2) slide plaque grise (rÃ©vÃ¨le le logo dÃ©jÃ  en place dans le menu) + zoom du logo 0.88 -> 1.00
-// 3) second slide de la plaque pour rÃ©vÃ©ler le reste du menu
+// 1) écran noir
+// 2) slide plaque grise (révèle le logo déjà en place dans le menu) + zoom du logo 0.88 -> 1.00
+// 3) second slide de la plaque pour révéler le reste du menu
 
 (function(){
-  const SWEEP_MS = 1200;   // durÃ©e slide-in
-  const EXIT_MS  = 1400;    // durÃ©e slide-out
+  const SWEEP_MS = 1200;   // durée slide-in
+  const EXIT_MS  = 1400;    // durée slide-out
   const GAP_MS   = 900;    // delay before the main curtain leaves
   const LOGO_REVEAL_DELAY = 150;  // hold time before revealing the logo
   const LOGO_ZOOM_MS = 1100;
@@ -77,8 +74,37 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
   const LOGO_MARGIN = 36;         // padding around the logo curtain
   const START_DELAY = 120;
   const UNDERLAY_INITIAL_SCALE = 1; // CSS body[data-intro] #menuBgLogo scale
+  // Simple sleep utility
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
-  async function runIntro(){
+  // Promise resolving when distro loading is done (or after a fallback timeout)
+  function waitForDistroReady(timeoutMs = 10000){
+    return new Promise(async (resolve) => {
+      try {
+        const data = await DistroAPI.getDistribution()
+        if (data) return resolve(true)
+      } catch(e) { /* ignore */ }
+
+      let settled = false
+      const done = () => { if(!settled){ settled = true; resolve(true) } }
+      const fail = () => { if(!settled){ settled = true; resolve(false) } }
+
+      const onMsg = async (_, res) => {
+        ipcRenderer.off('distributionIndexDone', onMsg)
+        if(res){
+          try {
+            await DistroAPI.getDistribution()
+            setTimeout(() => done(), 50)
+          } catch(e){ done() }
+        } else {
+          fail()
+        }
+      }
+      ipcRenderer.on('distributionIndexDone', onMsg)
+      setTimeout(() => { if(!settled){ ipcRenderer.off('distributionIndexDone', onMsg); resolve(false) } }, timeoutMs)
+    })
+  }
+async function runIntro(){
     const overlay = document.getElementById('introOverlay')
     const curtain = overlay ? overlay.querySelector('.curtain') : null
     const main    = document.getElementById('main')
@@ -283,12 +309,15 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
       }
 
       setTimeout(() => {
-        revealLogo()
+        revealLogo()      // Show a small loading text near the logo while waiting
       }, LOGO_REVEAL_DELAY)
+      // Gate the second slide on distro readiness, while ensuring minimum visual hold.
+      ;(async () => {
+        const minHold = sleep(LOGO_ZOOM_MS + GAP_MS)
+        await Promise.all([minHold, waitForDistroReady(12000)])
 
-      setTimeout(() => {
+        // Proceed with exit animation
         overlay.style.background = 'transparent'
-        // schedule a slight delay before fading out the overlay logo
         if(overlayLogo){
           setTimeout(() => { overlayLogo.style.opacity = '0' }, LOGO_FADE_DELAY_MS)
         }
@@ -330,11 +359,11 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
             }
           }
         }, REMOVE_DELAY)
-      }, LOGO_REVEAL_DELAY + LOGO_ZOOM_MS + GAP_MS)
+      })()
     }, START_DELAY)
   }
 
-  // Lance lâ€™intro au chargement du DOM.
+  // Lance l’intro au chargement du DOM.
   if(document.readyState === 'loading'){
     document.addEventListener('DOMContentLoaded', runIntro, { once: true })
   } else {
@@ -385,9 +414,9 @@ function setLaunchDetails(details){
 }
 
 /**
- * Met Ã  jour la progression visuelle.
- * - si percent == 0 â†’ on garde "Chargement..."
- * - si percent > 0 â†’ on affiche "xx%"
+ * Met à jour la progression visuelle.
+ * - si percent == 0 → on garde "Chargement..."
+ * - si percent > 0 → on affiche "xx%"
  */
 function setLaunchPercentage(percent){
     const btn = document.getElementById('launch_button')
@@ -396,11 +425,11 @@ function setLaunchPercentage(percent){
     const progText    = btn.querySelector('.launch_progress_text')
     const fill        = btn.querySelector('.launch_fill')
 
-    // Tant qu'on est en lancement/tÃ©lÃ©chargement, le bouton ne doit PAS Ãªtre cliquable.
+    // Tant qu'on est en lancement/téléchargement, le bouton ne doit PAS être cliquable.
     setLaunchEnabled(false)
 
     if (percent === 0){
-        // Juste aprÃ¨s clic :
+        // Juste après clic :
         // - cacher "JOUER"
         // - afficher "Chargement..."
         // - cacher le pourcentage
@@ -409,7 +438,7 @@ function setLaunchPercentage(percent){
         if(progText)    progText.style.opacity = '0'
         if(fill)        fill.style.width = '0%'
     } else {
-        // TÃ©lÃ©chargement effectif avec progression :
+        // Téléchargement effectif avec progression :
         // - cacher "JOUER"
         // - cacher "Chargement..."
         // - afficher "XX%"
@@ -430,11 +459,11 @@ function setLaunchPercentage(percent){
 
 
 /**
- * Remet le bouton dans son Ã©tat neutre visuellement :
+ * Remet le bouton dans son état neutre visuellement :
  * - "JOUER" visible
- * - "Chargement..." masquÃ©
- * - % masquÃ©
- * - barre blanche vidÃ©e
+ * - "Chargement..." masqué
+ * - % masqué
+ * - barre blanche vidée
  */
 function resetLaunchButtonUI() {
     const btn = document.getElementById('launch_button')
@@ -467,23 +496,23 @@ function resetLaunchButtonUI() {
 }
 
 function promptAlreadyRunning() {
-    // on remet le bouton dans l'Ã©tat normal AVANT d'afficher la pop-up
+    // on remet le bouton dans l'état normal AVANT d'afficher la pop-up
     resetLaunchButtonUI()
 
     setOverlayContent(
-        'Le jeu est dÃ©jÃ  lancÃ©',
-        'Une instance du jeu semble dÃ©jÃ  en cours. Lancer une deuxiÃ¨me instance peut causer des problÃ¨mes. Tu veux quand mÃªme lancer une autre instance ?',
-        'Lancer quand mÃªme',
+        'Le jeu est déjà lancé',
+        'Une instance du jeu semble déjà en cours. Lancer une deuxième instance peut causer des problèmes. Tu veux quand même lancer une autre instance ?',
+        'Lancer quand même',
         'Ne pas relancer'
     )
 
-    // si lâ€™utilisateur CONFIRME: on lance quand mÃªme
+    // si l’utilisateur CONFIRME: on lance quand même
     setOverlayHandler(async () => {
         toggleOverlay(false)
         await startLaunchSequence()
     })
 
-    // si lâ€™utilisateur REFUSE ou ferme avec Ã‰chap: on reste tranquille
+    // si l’utilisateur REFUSE ou ferme avec Échap: on reste tranquille
     setDismissHandler(() => {
         toggleOverlay(false)
         // on NE relance PAS le jeu
@@ -491,7 +520,7 @@ function promptAlreadyRunning() {
         // le bouton reste en mode "JOUER" actif
     })
 
-    // on affiche lâ€™overlay avec les deux boutons
+    // on affiche l’overlay avec les deux boutons
     toggleOverlay(true, true)
 }
 
@@ -499,7 +528,7 @@ async function startLaunchSequence() {
     if (isLaunching) return
     isLaunching = true
 
-    // bloque le bouton immÃ©diatement
+    // bloque le bouton immédiatement
     setLaunchEnabled(false)
 
     loggerLanding.info('Launching game..')
@@ -534,7 +563,7 @@ async function startLaunchSequence() {
             Lang.queryJS('landing.launch.failureText')
         )
 
-        // Ã©chec -> on rÃ©active le bouton et on remet l'Ã©tat visuel d'origine
+        // échec -> on réactive le bouton et on remet l'état visuel d'origine
         resetLaunchButtonUI()
     }
 }
@@ -546,21 +575,21 @@ function isGameRunning(){
 async function beginLaunchSequence(){
     loggerLanding.info('Launching game..')
     try {
-        // EmpÃªche le spam clic immÃ©diatement.
+        // Empêche le spam clic immédiatement.
         setLaunchEnabled(false)
 
         const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
         const jExe = ConfigManager.getJavaExecutable(ConfigManager.getSelectedServer())
 
         if(jExe == null){
-            // pas de Java -> scan systÃ¨me
+            // pas de Java -> scan système
             await asyncSystemScan(server.effectiveJavaOptions)
         } else {
 
             setLaunchDetails(Lang.queryJS('landing.launch.pleaseWait'))
             toggleLaunchArea(true)
 
-            // passe le bouton en mode "Chargement..." instantanÃ©ment
+            // passe le bouton en mode "Chargement..." instantanément
             setLaunchPercentage(0)
 
             const details = await validateSelectedJvm(
@@ -614,13 +643,13 @@ function setLaunchEnabled(val){
 // Bind launch button
 // Bind launch button
 document.getElementById('launch_button').addEventListener('click', async e => {
-    // Si un process jeu existe et qu'il n'est pas encore terminÃ© -> popup de confirmation.
+    // Si un process jeu existe et qu'il n'est pas encore terminé -> popup de confirmation.
     if (typeof proc !== 'undefined' && proc && proc.exitCode === null) {
         setOverlayContent(
-            'Le jeu est dÃ©jÃ  en cours',
-            'Minecraft semble dÃ©jÃ  lancÃ©. Relancer peut ouvrir une deuxiÃ¨me instance.',
+            'Le jeu est déjà en cours',
+            'Minecraft semble déjà lancé. Relancer peut ouvrir une deuxième instance.',
             'Ne pas relancer le jeu',
-            'Relancer quand mÃªme'
+            'Relancer quand même'
         )
 
         // Gros bouton principal : NE PAS relancer.
@@ -636,7 +665,7 @@ document.getElementById('launch_button').addEventListener('click', async e => {
             }
         })
 
-        // Lien secondaire : relancer quand mÃªme (force un nouveau lancement).
+        // Lien secondaire : relancer quand même (force un nouveau lancement).
         setDismissHandler(async () => {
             toggleOverlay(false)
             await actuallyStartLaunch()
@@ -652,8 +681,8 @@ document.getElementById('launch_button').addEventListener('click', async e => {
 
 async function actuallyStartLaunch(){
     loggerLanding.info('Launching game..')
-    // DÃ©sactiver le bouton pendant le chargement (sans lâ€™assombrir si ton CSS a Ã©tÃ© ajustÃ©).
-    setLaunchEnabled(true)  // sâ€™assure que lâ€™attribut existe
+    // Désactiver le bouton pendant le chargement (sans l’assombrir si ton CSS a été ajusté).
+    setLaunchEnabled(true)  // s’assure que l’attribut existe
     document.getElementById('launch_button').disabled = true
 
     try {
@@ -685,7 +714,7 @@ async function actuallyStartLaunch(){
             Lang.queryJS('landing.launch.failureTitle'),
             Lang.queryJS('landing.launch.failureText')
         )
-        // En cas dâ€™erreur immÃ©diate, on rÃ©active le bouton.
+        // En cas d’erreur immédiate, on réactive le bouton.
         document.getElementById('launch_button').disabled = false
     }
 }
@@ -700,7 +729,7 @@ if (settingsBtn) {
     }
 }
 
-// Bind avatar overlay button (dÃ©sactivÃ© si inexistant)
+// Bind avatar overlay button (désactivé si inexistant)
 const avatarOverlay = document.getElementById('avatarOverlay')
 if (avatarOverlay) {
     avatarOverlay.onclick = async e => {
@@ -717,7 +746,7 @@ function updateSelectedAccount(authUser) {
     const userText = document.getElementById('user_text')
     const avatarContainer = document.getElementById('avatarContainer')
 
-    if (!userText || !avatarContainer) return // Ã©vite tout plantage si supprimÃ©
+    if (!userText || !avatarContainer) return // évite tout plantage si supprimé
 
     let username = Lang.queryJS('landing.selectedAccount.noAccountSelected')
     if (authUser != null) {
@@ -734,7 +763,7 @@ if (typeof updateSelectedAccount === 'function') {
     try { updateSelectedAccount(ConfigManager.getSelectedAccount()) } catch(e) { console.warn('updateSelectedAccount skipped', e) }
 }
 
-// Force le serveur unique dÃ¨s le chargement
+// Force le serveur unique dès le chargement
 document.addEventListener('DOMContentLoaded', () => {
     resetLaunchButtonUI()
 })
@@ -839,60 +868,60 @@ const refreshServerStatus = async (fade = false) => {
     let survie_count = 0;
 
     try {
-        // RÃ©cupÃ¨re le fichier JSON
+        // Récupère le fichier JSON
         const response = await fetch(status);
 
-        // Si la rÃ©ponse est OK, on analyse le JSON
+        // Si la réponse est OK, on analyse le JSON
         if (response.ok) {
             const data = await response.json();
 
-            // RÃ©cupÃ©ration des valeurs pour Proxy-MC, MC-Crea-Mohist, et MC-Survie
+            // Récupération des valeurs pour Proxy-MC, MC-Crea-Mohist, et MC-Survie
             proxyMC = data["Proxy-MC"] || false;
             mcCreaMohist = data["MC-Crea-Mohist"] || false;
             mcSurvie = data["MC-Survie"] || false;
 
-            // Affichage des rÃ©sultats dans la console (ou utilisation selon tes besoins)
+            // Affichage des résultats dans la console (ou utilisation selon tes besoins)
             console.log("Proxy-MC: ", proxyMC);
             console.log("MC-Crea-Mohist: ", mcCreaMohist);
             console.log("MC-Survie: ", mcSurvie);
 
         } else {
-            console.error('Erreur lors de la rÃ©cupÃ©ration du fichier JSON:', response.statusText);
+            console.error('Erreur lors de la récupération du fichier JSON:', response.statusText);
         }
 
         try {
-            // Utilisation de fetch pour rÃ©cupÃ©rer le fichier
+            // Utilisation de fetch pour récupérer le fichier
             const response = await fetch(player_count_survie);
     
-            // Si la rÃ©ponse est OK, on rÃ©cupÃ¨re le texte
+            // Si la réponse est OK, on récupère le texte
             if (response.ok && mcSurvie) {
                 const text = await response.text();
                 survie_count = parseInt(text, 10) || 0;
                 console.log("Contenu du fichier survie:", text);
     
             } else {
-                console.error('Erreur lors de la rÃ©cupÃ©ration du fichier texte:', response.statusText);
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
             }
         } catch (error) {
-            console.error('Erreur lors de la requÃªte:', error);
+            console.error('Erreur lors de la requête:', error);
         }
 
         try {
-            // Utilisation de fetch pour rÃ©cupÃ©rer le fichier
+            // Utilisation de fetch pour récupérer le fichier
             const response = await fetch(player_count_crea);
     
-            // Si la rÃ©ponse est OK, on rÃ©cupÃ¨re le texte
+            // Si la réponse est OK, on récupère le texte
             if (response.ok && mcCreaMohist) {
                 const text = await response.text();
                 crea_count = parseInt(text, 10) || 0;
                 console.log("Contenu du fichier crea:", text);
     
             } else {
-                console.error('Erreur lors de la rÃ©cupÃ©ration du fichier texte:', response.statusText);
+                console.error('Erreur lors de la récupération du fichier texte:', response.statusText);
             }
 
         } catch (error) {
-            console.error('Erreur lors de la requÃªte:', error);
+            console.error('Erreur lors de la requête:', error);
         }
 
         console.log("crea_count : ", crea_count, ", survie_count : ", survie_count)
@@ -905,7 +934,7 @@ const refreshServerStatus = async (fade = false) => {
             pVal = total_player  + ' / 500'           
         }
     } catch (error) {
-        console.error('Erreur lors de la requÃªte:', error);
+        console.error('Erreur lors de la requête:', error);
     }
 
     if(fade){
@@ -936,7 +965,7 @@ const refreshServerStatus = async (fade = false) => {
         </div>
         <div class="ServerStatusContainer">
         <span class="ServerStatusIcon" style="color: ${getColor(mcCreaMohist)}; font-size: 24px; vertical-align: middle;">&#8226;</span>
-        <span class="ServerStatusName">CrÃ©atif</span>
+        <span class="ServerStatusName">Créatif</span>
         </div>
         `
 
@@ -1275,10 +1304,10 @@ async function dlAsync(login = true) {
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
 
-        // â¬‡â¬‡â¬‡ MODIFIÃ‰ ICI
+        // ⬇⬇⬇ MODIFIÉ ICI
         const onLoadComplete = () => {
-            // le client est parti, on considÃ¨re que le jeu tourne maintenant.
-            // on remet tout de suite le bouton dans l'Ã©tat "JOUER"
+            // le client est parti, on considère que le jeu tourne maintenant.
+            // on remet tout de suite le bouton dans l'état "JOUER"
             // mais gameIsRunning reste true => si tu recliques, tu auras la popup.
             resetLaunchButtonUI()
 
@@ -1290,7 +1319,7 @@ async function dlAsync(login = true) {
             proc.stdout.removeListener('data', tempListener)
             proc.stderr.removeListener('data', gameErrorListener)
         }
-        // â¬†â¬†â¬† FIN MODIF
+        // ⬆⬆⬆ FIN MODIF
 
         const start = Date.now()
 
@@ -1366,7 +1395,7 @@ async function dlAsync(login = true) {
 
                 proc = null
 
-                // on remet le bouton "JOUER" (au cas oÃ¹)
+                // on remet le bouton "JOUER" (au cas où)
                 resetLaunchButtonUI()
             })
 
@@ -1378,7 +1407,7 @@ async function dlAsync(login = true) {
                 Lang.queryJS('landing.dlAsync.checkConsoleForDetails')
             )
 
-            // en cas dâ€™erreur, bouton remis normal
+            // en cas d’erreur, bouton remis normal
             resetLaunchButtonUI()
         }
     }
@@ -1782,7 +1811,7 @@ try {
   if (versionSpan) versionSpan.textContent = version
   console.log('Launcher version:', version)
 } catch (err) {
-  console.error('Impossible de rÃ©cupÃ©rer la version du launcher:', err)
+  console.error('Impossible de récupérer la version du launcher:', err)
 }
 
 
