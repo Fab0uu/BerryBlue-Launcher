@@ -4311,11 +4311,11 @@ input:checked + .toggleSwitchSlider:before {
 
 .serverCard {
   display: grid;
-  grid-template-columns: auto 1fr;
-  grid-auto-rows: auto;
+  grid-template-columns: 1fr 2fr; /* 1/3 - 2/3 */
+  grid-template-rows: auto auto;
   column-gap: 12px;
-  row-gap: 6px; /* espace entre les deux lignes */
   align-items: center;
+  justify-items: center; /* centre les items dans leurs cellules */
   background: rgba(255, 255, 255, 0.05);
   border-radius: 14px;
   padding: 14px 20px;
@@ -4323,6 +4323,8 @@ input:checked + .toggleSwitchSlider:before {
   height: 70px;
   backdrop-filter: blur(10px);
   transition: background 0.3s ease;
+  --left-gap: 16px; 
+  --right-gap: 16px;
 }
 
 .serverCard:hover {
@@ -4330,12 +4332,22 @@ input:checked + .toggleSwitchSlider:before {
 }
 
 .serverCard-left {
-  /* Flatten container so children become grid items */
-  display: contents;
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center; 
+  gap: var(--left-gap, 10px); 
+  grid-column: 1; 
+  grid-row: 1 / span 2;
 }
 .serverCard-right {
-  /* Flatten container so children become grid items */
-  display: contents;
+display: flex; 
+flex-direction: column; 
+align-items: center; 
+justify-content: center; 
+gap: var(--right-gap, 8px); 
+grid-column: 2; 
+grid-row: 1 / span 2;
 }
 
 .serverIcon {
@@ -4358,7 +4370,6 @@ input:checked + .toggleSwitchSlider:before {
   justify-self: center;
 }
 
-/* Textes */
 .serverName {
   font-family: 'DTLProkyonTCapsLight';
   font-size: 14px;
@@ -4367,22 +4378,20 @@ input:checked + .toggleSwitchSlider:before {
   font-weight: 600;
   grid-column: 2;
   grid-row: 1;
-  justify-self: start;
-  text-align: left;
+  text-align: center;
+  justify-self: center;
 }
 
 .serverStatus {
   font-family: 'DTLProkyonTCapsLight';
-  font-size: 12px;
+  font-size: 15px;
   color: rgba(255, 255, 255, 0.6);
   grid-column: 2;
   grid-row: 2;
-  justify-self: start;
-  text-align: left;
+  text-align: center;
   margin-top: 0; /* l'espacement est géré par row-gap */
+  justify-self: center;
 }
-
-
 #copyrightText {
   position: absolute;
   bottom: -120px;          /* marge depuis le bas */
@@ -4493,4 +4502,15 @@ body[data-intro-zoom="1"] #menuBgLogo{ transform: scale(1); }
 @keyframes intro-curtain-out{
   from{ transform: translateX(0%); }
   to  { transform: translateX(-110%); }
+}
+
+
+/* Fallback: ensure the launcher background image is always present.
+   This does not change layout; it just restores the wallpaper behind the UI.
+   JS can still override it if needed (same image path). */
+body {
+  background-image: url('../images/background.jpg') !important;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
 }

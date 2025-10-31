@@ -1,0 +1,18 @@
+*** Begin Patch
+*** Update File: app/assets/css/launcher.css
+@@
+ @keyframes intro-curtain-out{
+   from{ transform: translateX(0%); }
+   to  { transform: translateX(-110%); }
+ }
+ 
+ /* Fallback: ensure the launcher background image is always present.
+    This does not change layout; it just restores the wallpaper behind the UI.
+    JS can still override it if needed (same image path). */
+ body {
+   background-image: url('../images/background.jpg') !important;
+   background-size: cover;
+   background-position: center center;
+   background-repeat: no-repeat;
+ }
+*** End Patch
