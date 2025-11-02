@@ -1,4 +1,4 @@
-﻿/* Github Code Highlighting. */
+/* Github Code Highlighting. */
 @import "../../../node_modules/github-syntax-dark/lib/github-dark.css";
 @import url('https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap');
 
@@ -50,6 +50,8 @@ body, html, div {
 p {
     -webkit-margin-before: 0em;
     -webkit-margin-after: 0em;
+    margin-block-start: 0;
+    margin-block-end: 0;
 }
 
 /* Set default font and color. */
@@ -663,12 +665,14 @@ body, button {
 }
 #loginButton:hover #loginSVG,
 #loginButton:focus #loginSVG {
+    filter: drop-shadow(0px 0px 2px #fff);
     -webkit-filter: drop-shadow(0px 0px 2px #fff);
 }
 #loginButton:active #loginSVG .arrowLine {
     stroke: #c7c7c7;
 }
 #loginButton:active #loginSVG {
+    filter: drop-shadow(0px 0px 2px #c7c7c7);
     -webkit-filter: drop-shadow(0px 0px 2px #c7c7c7);
 }
 #loginButton:disabled #loginSVG .arrowLine {
@@ -819,7 +823,7 @@ body, button {
     position: relative;
     cursor: pointer;
     font-size: 24px;
-    -webkit-user-select: none;
+    user-select: none;
 }
 
 /* Hide the default checkbox. */
@@ -1612,7 +1616,7 @@ input:checked + .toggleSwitchSlider:before {
 }
 .settingsAuthAccountDetailValue {
     font-size: 16px;
-    -webkit-user-select: initial;
+    user-select: initial;
 }
 
 /* Account actions container. */
@@ -2572,6 +2576,7 @@ input:checked + .toggleSwitchSlider:before {
     width: 100%;
     display: flex;
     -webkit-user-select: initial;
+    user-select: initial;
     position: relative;
 }
 
@@ -2774,7 +2779,7 @@ input:checked + .toggleSwitchSlider:before {
     justify-content: center;
     align-items: center;
     margin-bottom: 10px;
-    -webkit-user-select: none;
+    user-select: none;
     position: absolute;
     bottom: 15px;
     right: 0px;
@@ -2799,7 +2804,7 @@ input:checked + .toggleSwitchSlider:before {
 #newsNavigateLeft:focus #newsNavigationLeftSVG,
 #newsNavigateRight:hover #newsNavigationRightSVG,
 #newsNavigateRight:focus #newsNavigationRightSVG {
-    -webkit-filter: drop-shadow(0px 0px 2px #fff);
+    filter: drop-shadow(0px 0px 2px #fff);
 }
 #newsNavigateLeft:active #newsNavigationLeftSVG .arrowLine,
 #newsNavigateRight:active #newsNavigationRightSVG .arrowLine {
@@ -3046,6 +3051,7 @@ input:checked + .toggleSwitchSlider:before {
     letter-spacing: 2px;
     background-color: rgba(0, 0, 0, 0.35);
     -webkit-user-select: none;
+    user-select: none;
     border: none;
     cursor: pointer;
     width: 100%;
@@ -3228,11 +3234,11 @@ input:checked + .toggleSwitchSlider:before {
 /* Instagram icon colors. */
 #instagramSVG:hover,
 #instagramURL:focus #instagramSVG {
-    fill: url('#instaFill')
+    fill: url('#instaFill');
     /*fill: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); */
 }
 #instagramSVG:active {
-    fill: url('#instaFill')
+    fill: url('#instaFill');
 }
 
 /* Youtube icon colors. */
@@ -3489,13 +3495,13 @@ input:checked + .toggleSwitchSlider:before {
 #newsButton:hover #newsButtonSVG,
 #newsButton:focus #newsButtonSVG {
     filter: drop-shadow(0px 0px 2px #fff);
-    -webkit-filter: drop-shadow(0px 0px 2px #fff);
+    filter: drop-shadow(0px 0px 2px #fff);
 }
 #newsButton:active #newsButtonSVG .arrowLine {
     stroke: #c7c7c7;
 }
 #newsButton:active #newsButtonSVG {
-    -webkit-filter: drop-shadow(0px 0px 2px #c7c7c7);
+    filter: drop-shadow(0px 0px 2px #c7c7c7);
 }
 #newsButton:disabled #newsButtonSVG .arrowLine {
     stroke: rgba(255, 255, 255, 0.75);
@@ -3721,7 +3727,7 @@ input:checked + .toggleSwitchSlider:before {
 #launch_progress[value] {
     height: 3px;
     width: 265px;
-    -webkit-appearance: none;
+    appearance: none;
 }
 #launch_progress[value]::-webkit-progress-bar {
     background-color: transparent;
@@ -3809,14 +3815,14 @@ input:checked + .toggleSwitchSlider:before {
     font-size: 22px;
     font-weight: bold;
     letter-spacing: 1px;
-    -webkit-user-select: initial;
+    user-select: initial;
 }
 
 /* Overlay description styles. */
 #overlayDesc {
     font-size: 14px;
     font-weight: bold;
-    -webkit-user-select: initial;
+    user-select: initial;
 }
 
 /* Div which contains action buttons. */

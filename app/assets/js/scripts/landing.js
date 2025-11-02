@@ -729,6 +729,19 @@ if (settingsBtn) {
     }
 }
 
+// Bind mods button
+const modsBtn = document.getElementById('modsMediaButton')
+if (modsBtn) {
+    modsBtn.onclick = async e => {
+        await prepareSettings()
+        // Open settings and select the Mods tab.
+        switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
+            const modsNav = document.getElementById('settingsNavMods') || Array.from(document.getElementsByClassName('settingsNavItem')).find(v => v.getAttribute('rSc') === 'settingsTabMods')
+            if (modsNav) settingsNavItemListener(modsNav, false)
+        })
+    }
+}
+
 // Bind avatar overlay button (désactivé si inexistant)
 const avatarOverlay = document.getElementById('avatarOverlay')
 if (avatarOverlay) {
