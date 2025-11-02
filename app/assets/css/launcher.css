@@ -2854,24 +2854,6 @@ input:checked + .toggleSwitchSlider:before {
 #nELoadSpan {
     white-space: pre;
 }
-/* News error retry button styles. */
-#newsErrorRetry {
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    background: none;
-    border: none;
-    outline: none;
-    transition: 0.25s ease;
-}
-#newsErrorRetry:focus,
-#newsErrorRetry:hover {
-    text-shadow: 0px 0px 20px white;
-}
-#newsErrorRetry:active {
-    color: #c7c7c7;
-    text-shadow: 0px 0px 20px #c7c7c7;
-}
 
 /*******************************************************************************
  *                                                                             *

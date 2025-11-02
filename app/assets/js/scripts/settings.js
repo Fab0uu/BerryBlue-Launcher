@@ -325,8 +325,6 @@ function fullSettingsSave() {
     saveSettingsValues()
     saveModConfiguration()
     ConfigManager.save()
-    saveDropinModConfiguration()
-    saveShaderpackSettings()
 }
 
 /* Closes the settings view and saves all data. */
@@ -971,9 +969,13 @@ function saveDropinModConfiguration(){
 document.addEventListener('keydown', async (e) => {
     if(getCurrentView() === VIEWS.settings && selectedSettingsTab === 'settingsTabMods'){
         if(e.key === 'F5'){
-            await reloadDropinMods()
-            saveShaderpackSettings()
-            await resolveShaderpacksForUI()
+            if(document.getElementById('settingsDropinModsContent')){
+                await reloadDropinMods()
+            }
+            if(document.getElementById('settingsShadersOptions')){
+                saveShaderpackSettings()
+                await resolveShaderpacksForUI()
+            }
         }
     }
 })
@@ -1112,7 +1114,6 @@ Array.from(document.getElementsByClassName('settingsSwitchServerButton')).forEac
 function saveAllModConfigurations(){
     saveModConfiguration()
     ConfigManager.save()
-    saveDropinModConfiguration()
 }
 
 /**
@@ -1131,11 +1132,6 @@ function animateSettingsTabRefresh(){
  */
 async function prepareModsTab(first){
     await resolveModsForUI()
-    await resolveDropinModsForUI()
-    await resolveShaderpacksForUI()
-    bindDropinModsRemoveButton()
-    bindDropinModFileSystemButton()
-    bindShaderpackButton()
     bindModsToggleSwitch()
     await loadSelectedServerOnModsTab()
 }

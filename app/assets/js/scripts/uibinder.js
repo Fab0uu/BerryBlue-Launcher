@@ -66,7 +66,6 @@ async function showMainUI(data){
 
     await prepareSettings(true)
     updateSelectedServer(data.getServerById(ConfigManager.getSelectedServer()))
-    refreshServerStatus()
     setTimeout(() => {
         document.getElementById('frameBar').style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
         document.body.style.backgroundImage = `url('assets/images/background.jpg')`
@@ -103,10 +102,6 @@ async function showMainUI(data){
         }, 250)
         
     }, 750)
-    // Disable tabbing to the news container.
-    initNews().then(() => {
-        $('#newsContainer *').attr('tabindex', '-1')
-    })
 }
 
 function showFatalStartupError(){
@@ -134,8 +129,6 @@ function showFatalStartupError(){
  */
 function onDistroRefresh(data){
     updateSelectedServer(data.getServerById(ConfigManager.getSelectedServer()))
-    refreshServerStatus()
-    initNews()
     syncModConfigurations(data)
     ensureJavaSettings(data)
 }
