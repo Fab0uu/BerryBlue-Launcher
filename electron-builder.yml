@@ -1,5 +1,5 @@
-appId: 'berryblue'
-productName: 'BerryBlue'
+appId: 'Eidolyth'
+productName: 'Eidolyth Launcher'
 artifactName: '${productName}-setup-${version}.${ext}'
 
 copyright: 'Copyright © 2024 Fabrice Lozach'
