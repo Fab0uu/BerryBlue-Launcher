@@ -5,9 +5,9 @@
   "description": "Eidolyth Minecraft Launcher",
   "author": "Daniel Scalzi (https://github.com/dscalzi/), Fabrice Lozac'h (https://github.com/Fab0uu)",
   "license": "UNLICENSED",
-  "homepage": "https://github.com/Fab0uu/BerryBlue-Launcher",
+  "homepage": "https://github.com/Fab0uu/Eidolyth-Launcher",
   "bugs": {
-    "url": "https://github.com/Fab0uu/BerryBlue-Launcher/issues"
+    "url": "https://github.com/Fab0uu/Eidolyth-Launcher/issues"
   },
   "private": true,
   "main": "index.js",
@@ -46,6 +46,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Fab0uu/BerryBlue-Launcher"
+    "url": "git+https://github.com/Fab0uu/Eidolyth-Launcher"
   }
 }

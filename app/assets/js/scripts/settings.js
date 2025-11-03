@@ -205,10 +205,6 @@ function saveSettingsValues(){
                 } else if(v.type === 'checkbox'){
                     sFnOpts.push(v.checked)
                     sFn.apply(null, sFnOpts)
-                    // Special Conditions
-                    if(cVal === 'AllowPrerelease'){
-                        changeAllowPrerelease(v.checked)
-                    }
                 }
             } else if(v.tagName === 'DIV'){
                 if(v.classList.contains('rangeSlider')){
@@ -748,10 +744,6 @@ function parseModulesForUI(mdls, submodules, servConf){
                                 <span class="settingsModVersion">v${mdl.mavenComponents.version}</span>
                             </div>
                         </div>
-                        <label class="toggleSwitch" reqmod>
-                            <input type="checkbox" checked>
-                            <span class="toggleSwitchSlider"></span>
-                        </label>
                     </div>
                     ${mdl.subModules.length > 0 ? `<div class="settingsSubModContainer">
                         ${Object.values(parseModulesForUI(mdl.subModules, true, servConf[mdl.getVersionlessMavenIdentifier()])).join('')}
@@ -1450,7 +1442,7 @@ function populateAboutVersionInformation(){
  */
 function populateReleaseNotes(){
     $.ajax({
-        url: 'https://github.com/Fab0uu/BerryBlue-Launcher/releases.atom',
+        url: 'https://github.com/Fab0uu/Eidolyth-Launcher/releases.atom',
         success: (data) => {
             const version = 'v' + remote.app.getVersion()
             const entries = $(data).find('entry')

@@ -4,15 +4,15 @@
 title = "Eidolyth Launcher"
 
 [ejs.landing]
-mediaGitHubURL = "https://github.com/Fab0uu/BerryBlue-Launcher"
+mediaGitHubURL = "https://github.com/Fab0uu/Eidolyth-Launcher"
 mediaTwitterURL = "#"
 mediaInstagramURL = "#"
 mediaYouTubeURL = "#"
 mediaDiscordURL = "https://discord.gg/CvFxSu6NHa"
 
 [ejs.settings]
-sourceGithubLink = "https://github.com/Fab0uu/BerryBlue-Launcher"
-supportLink = "https://github.com/Fab0uu/BerryBlue-Launcher/issues"
+sourceGithubLink = "https://github.com/Fab0uu/Eidolyth-Launcher"
+supportLink = "https://github.com/Fab0uu/Eidolyth-Launcher/issues"
 
 [ejs.welcome]
 welcomeHeader = "Bienvenue sur Eidolyth"
