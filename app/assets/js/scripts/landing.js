@@ -42,6 +42,9 @@ const MIN_LINGER = 5000
 // Internal Requirements
 const DiscordWrapper          = require('./assets/js/discordwrapper')
 const ProcessBuilder          = require('./assets/js/processbuilder')
+const DropinCleanerUtil       = require('./assets/js/dropinmodutil')
+const fsExtra                 = require('fs-extra')
+const nodePath                = require('path')
 
 // Launch Elements
 const launch_content          = document.getElementById('launch_content')
@@ -1097,6 +1100,26 @@ async function dlAsync(login = true) {
     setLaunchDetails(Lang.queryJS('landing.dlAsync.pleaseWait'))
     toggleLaunchArea(true)
     setLaunchPercentage(0)
+
+    // Clean any user-added drop-in mods before validation/download.
+    try {
+        const modsDir = nodePath.join(ConfigManager.getInstanceDirectory(), serv.rawServer.id, 'mods')
+        const found = DropinCleanerUtil.scanForDropinMods(modsDir, serv.rawServer.minecraftVersion)
+        if (Array.isArray(found) && found.length > 0) {
+            const loggerLaunchSuite = LoggerUtil.getLogger('LaunchSuite')
+            loggerLaunchSuite.info(`Removing ${found.length} drop-in mod(s) from ${modsDir}`)
+            for (const m of found) {
+                try {
+                    fsExtra.removeSync(nodePath.join(modsDir, m.fullName))
+                } catch (e) {
+                    loggerLaunchSuite.warn(`Failed to remove drop-in mod: ${m.fullName}`, e)
+                }
+            }
+        }
+    } catch (e) {
+        // Non-fatal: continue launch even if cleanup fails
+        try { LoggerUtil.getLogger('LaunchSuite').warn('Drop-in mods cleanup failed.', e) } catch(_) {}
+    }
 
     const fullRepairModule = new FullRepair(
         ConfigManager.getCommonDirectory(),
