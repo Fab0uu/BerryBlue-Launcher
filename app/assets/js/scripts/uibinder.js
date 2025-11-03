@@ -38,11 +38,23 @@ let currentView
  * @param {*} onNextFade Optional. Callback function to execute when the next view
  * fades in.
  */
+function setBodyOverflowForView(view) {
+    try {
+        if(view === VIEWS.welcome || view === VIEWS.loginOptions || view === VIEWS.login || view === VIEWS.waiting){
+            document.body.style.overflow = 'hidden'
+        } else {
+            document.body.style.overflow = ''
+        }
+    } catch(e) {}
+}
+
 function switchView(current, next, currentFadeTime = 500, nextFadeTime = 500, onCurrentFade = () => {}, onNextFade = () => {}){
     currentView = next
+    setBodyOverflowForView(next)
     $(`${current}`).fadeOut(currentFadeTime, async () => {
         await onCurrentFade()
         $(`${next}`).fadeIn(nextFadeTime, async () => {
+            setBodyOverflowForView(next)
             await onNextFade()
         })
     })
@@ -116,16 +128,19 @@ async function showMainUI(data){
         if(ConfigManager.isFirstLaunch()){
             currentView = VIEWS.welcome
             $(VIEWS.welcome).fadeIn(1000)
+            setBodyOverflowForView(currentView)
         } else {
             if(isLoggedIn){
                 currentView = VIEWS.landing
                 $(VIEWS.landing).fadeIn(1000)
+                setBodyOverflowForView(currentView)
             } else {
                 loginOptionsCancelEnabled(false)
                 loginOptionsViewOnLoginSuccess = VIEWS.landing
                 loginOptionsViewOnLoginCancel = VIEWS.loginOptions
                 currentView = VIEWS.loginOptions
                 $(VIEWS.loginOptions).fadeIn(1000)
+                setBodyOverflowForView(currentView)
             }
         }
 

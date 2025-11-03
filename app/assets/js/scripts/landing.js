@@ -148,6 +148,7 @@ async function runIntro(){
     let logoCurtain = null
     let logoCurtainMetrics = null
     let overlayLogo = null
+    let overlayLogoInitialLeft = null
     let menuLogoInitialScale = 1
 
     const getCurrentScale = (el) => {
@@ -218,10 +219,10 @@ async function runIntro(){
       img.id = 'introOverlayLogo'
       img.className = 'intro-logo'
       img.src = menuLogo.currentSrc || menuLogo.src
-      Object.assign(img.style, {
-        position: 'fixed',
-        left: `${rect.left}px`,
-        top: `${rect.top}px`,
+        Object.assign(img.style, {
+            position: 'fixed',
+            left: `${rect.left}px`,
+            top: `${rect.top}px`,
         width: `${rect.width}px`,
         height: `${rect.height}px`,
         zIndex: '3',
@@ -233,8 +234,9 @@ async function runIntro(){
       // Ensure zoom applies even if a CSS rule had !important previously.
       img.style.setProperty('transform', 'scale(1)', 'important')
       img.style.setProperty('will-change', 'transform')
-      overlay.appendChild(img)
-      return img
+        overlay.appendChild(img)
+        overlayLogoInitialLeft = rect.left
+        return img
     }
 
     if(menuLogo){
@@ -321,13 +323,36 @@ async function runIntro(){
 
         // Proceed with exit animation
         overlay.style.background = 'transparent'
+
+        // Determine if we should fast-exit (welcome or loginOptions shown).
+        let fastExit = false
+        try {
+          const hasAccounts = Object.keys(ConfigManager.getAuthAccounts() || {}).length > 0
+          const isFirst = typeof ConfigManager.isFirstLaunch === 'function' ? ConfigManager.isFirstLaunch() : false
+          fastExit = isFirst || !hasAccounts
+        } catch(e) {}
+
         if(overlayLogo){
-          setTimeout(() => { overlayLogo.style.opacity = '0' }, LOGO_FADE_DELAY_MS)
+          if(fastExit){
+            if(logoCurtain && logoCurtainMetrics && typeof overlayLogoInitialLeft === 'number'){
+              const existingTransition = overlayLogo.style.transition || ''
+              const leftTransition = `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
+              overlayLogo.style.transition = existingTransition ? `${existingTransition}, ${leftTransition}` : leftTransition
+              const targetLeft = overlayLogoInitialLeft + logoCurtainMetrics.offscreenLeft
+              requestAnimationFrame(() => {
+                overlayLogo.style.left = `${targetLeft}px`
+              })
+            } else {
+              overlayLogo.style.opacity = '0'
+            }
+          } else {
+            setTimeout(() => { overlayLogo.style.opacity = '0' }, LOGO_FADE_DELAY_MS)
+          }
         }
         overlay.classList.remove('show')
         overlay.classList.add('hide')
 
-        const REMOVE_DELAY = Math.max(EXIT_MS, LOGO_FADE_DELAY_MS + LOGO_FADE_MS)
+        const REMOVE_DELAY = fastExit ? EXIT_MS : Math.max(EXIT_MS, LOGO_FADE_DELAY_MS + LOGO_FADE_MS)
         setTimeout(() => {
           overlay.style.display = 'none'
           overlay.classList.remove('hide')

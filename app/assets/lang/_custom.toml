@@ -15,6 +15,6 @@ sourceGithubLink = "https://github.com/Fab0uu/BerryBlue-Launcher"
 supportLink = "https://github.com/Fab0uu/BerryBlue-Launcher/issues"
 
 [ejs.welcome]
-welcomeHeader = "WELCOME TO BERRYBLUE"
-welcomeDescription = "Dive into a world of endless possibilities with our meticulously crafted modpack, featuring an exceptional blend of Cobblemon, Create, Applied Energistics 2, and Mekanism to deliver a truly unique and immersive gameplay experience. Our server is designed as a semi-RP (Role-Playing) environment, offering a friendly and cooperative community where players can collaborate and thrive together."
-welcomeDescCTA = "You are just a few clicks away from BerryBlue."
+welcomeHeader = "Bienvenue sur Eidolyth"
+welcomeDescription = "Eidolyth vous propose une expérience moddé unique réunissant Cobblemon, Create, Applied Energistics 2 et Mekanism. Un monde technique, vivant et collaboratif — prêt à accueillir votre aventure."
+welcomeDescCTA = "Connectez-vous pour commencer."
