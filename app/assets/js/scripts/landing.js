@@ -745,6 +745,22 @@ if (modsBtn) {
     }
 }
 
+// Bind website button
+const websiteBtn = document.getElementById('websiteMediaButton')
+if (websiteBtn) {
+    websiteBtn.onclick = () => {
+        try { shell.openExternal('https://mc.berryblue.fr') } catch (e) { console.error('Failed to open website', e) }
+    }
+}
+
+// Bind Discord button
+const discordBtn = document.getElementById('discordMediaButton')
+if (discordBtn) {
+    discordBtn.onclick = () => {
+        try { shell.openExternal('https://discord.com/invite/CvFxSu6NHa') } catch (e) { console.error('Failed to open Discord invite', e) }
+    }
+}
+
 // Bind avatar overlay button (désactivé si inexistant)
 const avatarOverlay = document.getElementById('avatarOverlay')
 if (avatarOverlay) {
@@ -810,65 +826,6 @@ function updateSelectedServer(serv) {
     setLaunchEnabled(serv != null)
 }
 
-// Update Mojang Status Color
-// const refreshMojangStatuses = async function(){
-//     loggerLanding.info('Refreshing Mojang Statuses..')
-
-//     let status = 'grey'
-//     let tooltipEssentialHTML = '
-//     let tooltipNonEssentialHTML = '
-
-//     const response = await MojangRestAPI.status()
-//     let statuses
-//     if(response.responseStatus === RestResponseStatus.SUCCESS) {
-//         statuses = response.data
-//     } else {
-//         loggerLanding.warn('Unable to refresh Mojang service status.')
-//         statuses = MojangRestAPI.getDefaultStatuses()
-//     }
-    
-//     greenCount = 0
-//     greyCount = 0
-
-//     for(let i=0; i<statuses.length; i++){
-//         const service = statuses[i]
-
-//         const tooltipHTML = `<div class="mojangStatusContainer">
-//             <span class="mojangStatusIcon" style="color: ${MojangRestAPI.statusToHex(service.status)};">&#8226;</span>
-//             <span class="mojangStatusName">${service.name}</span>
-//         </div>`
-//         if(service.essential){
-//             tooltipEssentialHTML += tooltipHTML
-//         } else {
-//             tooltipNonEssentialHTML += tooltipHTML
-//         }
-
-//         if(service.status === 'yellow' && status !== 'red'){
-//             status = 'yellow'
-//         } else if(service.status === 'red'){
-//             status = 'red'
-//         } else {
-//             if(service.status === 'grey'){
-//                 ++greyCount
-//             }
-//             ++greenCount
-//         }
-
-//     }
-
-//     if(greenCount === statuses.length){
-//         if(greyCount === statuses.length){
-//             status = 'grey'
-//         } else {
-//             status = 'green'
-//         }
-//     }
-    
-//     document.getElementById('mojangStatusEssentialContainer').innerHTML = tooltipEssentialHTML
-//     document.getElementById('mojangStatusNonEssentialContainer').innerHTML = tooltipNonEssentialHTML
-//     document.getElementById('mojang_status_icon').style.color = MojangRestAPI.statusToHex(status)
-// }
-
 const dotSurvie = document.getElementById('dot-survie');
 const txtSurvie = document.getElementById('text-survie');
 const dotCrea   = document.getElementById('dot-crea');
@@ -893,13 +850,6 @@ if (txtCrea) {
     txtCrea.textContent = 'OFFLINE';
   }
 }
-
-
-// refreshMojangStatuses()
-// Server Status is refreshed in uibinder.js on distributionIndexDone.
-
-// Refresh statuses every hour. The status page itself refreshes every day so...
-let mojangStatusListener = null
 
 /**
  * Shows an error overlay, toggles off the launch area.

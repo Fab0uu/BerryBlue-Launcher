@@ -57,6 +57,40 @@ function getCurrentView(){
     return currentView
 }
 
+// Fallback stub to avoid race with landing.js defining updateSelectedServer later.
+if (typeof updateSelectedServer !== 'function') {
+    function updateSelectedServer(serv) {
+        try {
+            if (getCurrentView() === VIEWS.settings && typeof fullSettingsSave === 'function') {
+                fullSettingsSave()
+            }
+        } catch (e) {}
+
+        try {
+            if (serv == null) {
+                const dist = ConfigManager.getDistribution()
+                if (dist && dist.servers && dist.servers.length > 0) {
+                    serv = { rawServer: dist.servers[0] }
+                }
+            }
+            ConfigManager.setSelectedServer(serv ? serv.rawServer.id : null)
+            ConfigManager.save()
+        } catch (e) {}
+
+        try {
+            if (getCurrentView() === VIEWS.settings && typeof animateSettingsTabRefresh === 'function') {
+                animateSettingsTabRefresh()
+            }
+        } catch (e) {}
+
+        try {
+            if (typeof setLaunchEnabled === 'function') {
+                setLaunchEnabled(serv != null)
+            }
+        } catch (e) {}
+    }
+}
+
 async function showMainUI(data){
 
     if(!isDev){
