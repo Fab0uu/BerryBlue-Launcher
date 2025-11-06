@@ -7,13 +7,18 @@ const {
 const {
     RestResponseStatus,
     isDisplayableError,
-    validateLocalFile
+    validateLocalFile,
+    getMojangOS,
+    isLibraryCompatible
 }                             = require('helios-core/common')
 const {
     FullRepair,
     DistributionIndexProcessor,
     MojangIndexProcessor,
-    downloadFile
+    downloadFile,
+    downloadQueue,
+    getExpectedDownloadSize,
+    HashAlgo
 }                             = require('helios-core/dl')
 const {
     validateSelectedJvm,
@@ -774,7 +779,7 @@ if (modsBtn) {
 const websiteBtn = document.getElementById('websiteMediaButton')
 if (websiteBtn) {
     websiteBtn.onclick = () => {
-        try { shell.openExternal('https://mc.berryblue.fr') } catch (e) { console.error('Failed to open website', e) }
+        try { shell.openExternal('https://www.eidolyth.fr/') } catch (e) { console.error('Failed to open website', e) }
     }
 }
 
@@ -1037,6 +1042,180 @@ async function downloadJava(effectiveJavaOptions, launchAfter = true) {
 
 }
 
+function resolveArtifactHash(artifact){
+    if(artifact == null){
+        return null
+    }
+    if(artifact.sha1){
+        return { algo: HashAlgo.SHA1, hash: artifact.sha1 }
+    }
+    if(artifact.sha256){
+        return { algo: HashAlgo.SHA256, hash: artifact.sha256 }
+    }
+    if(artifact.md5){
+        return { algo: HashAlgo.MD5, hash: artifact.md5 }
+    }
+    return null
+}
+
+async function ensureModLoaderLibraries(modLoaderData, loggerLaunchSuite){
+    if(modLoaderData == null || !Array.isArray(modLoaderData.libraries) || modLoaderData.libraries.length === 0){
+        return []
+    }
+
+    const librariesDir = nodePath.join(ConfigManager.getCommonDirectory(), 'libraries')
+    const assetsToDownload = []
+    const seenPaths = new Set()
+    const forcedModulePathEntries = new Map()
+
+    const moduleKeywords = [
+        'bootstraplauncher',
+        'securejarhandler',
+        'modlauncher',
+        'jarjarfilesystem',
+        'accesstransformer',
+        'asm-',
+        'slf4j',
+        'log4j',
+        'antlr',
+        'jopt-simple',
+        'joptsimple',
+        // Additional mod-loader utilities that NeoForge requires before game launch.
+        'night-config',
+        'typetools',
+        'terminalconsoleappender',
+        'sponge-mixin',
+        'nashorn',
+        'guava',
+        'commons-lang3',
+        'commons-io',
+        'mergetool',
+        'srgutils'
+    ]
+
+    const shouldForceModulePath = (libName, artifactPath) => {
+        if(!artifactPath){
+            return false
+        }
+        const loweredPath = artifactPath.toLowerCase()
+        const loweredName = (libName || '').toLowerCase()
+        return moduleKeywords.some(keyword =>
+            loweredPath.includes(keyword) || loweredName.includes(keyword)
+        )
+    }
+
+    const queueArtifact = async (libName, artifact, label, destination, relativePath) => {
+        if(artifact == null || artifact.url == null || artifact.path == null){
+            return
+        }
+        if(typeof destination !== 'string' || destination.length === 0){
+            return
+        }
+        const hashInfo = resolveArtifactHash(artifact)
+        if(hashInfo == null){
+            return
+        }
+        const normalizedDestination = nodePath.normalize(destination)
+        const relativeNormalized = relativePath != null ? relativePath.replace(/\\/g, '/').replace(/^\//, '') : null
+
+        if(shouldForceModulePath(libName, normalizedDestination)){
+            forcedModulePathEntries.set(normalizedDestination, relativeNormalized)
+        }
+
+        if(seenPaths.has(normalizedDestination)){
+            return
+        }
+        if(await validateLocalFile(normalizedDestination, hashInfo.algo, hashInfo.hash)){
+            return
+        }
+        seenPaths.add(normalizedDestination)
+        assetsToDownload.push({
+            id: `${libName}${label}`,
+            hash: hashInfo.hash,
+            algo: hashInfo.algo,
+            size: artifact.size || 0,
+            url: artifact.url,
+            path: normalizedDestination
+        })
+    }
+
+    for(const lib of modLoaderData.libraries){
+        if(!isLibraryCompatible(lib.rules, lib.natives)){
+            continue
+        }
+
+        const downloads = lib.downloads
+        if(downloads == null){
+            continue
+        }
+
+        if(downloads.artifact){
+            const relativePath = downloads.artifact.path
+            if(typeof relativePath !== 'string' || relativePath.length === 0){
+                loggerLaunchSuite?.warn?.(`Skipping mod loader library ${lib.name}, missing artifact path definition.`)
+                continue
+            }
+            const destination = nodePath.join(librariesDir, relativePath)
+            await queueArtifact(lib.name, downloads.artifact, '', destination, relativePath)
+        }
+
+        if(lib.natives && downloads.classifiers){
+            const nativeDescriptor = lib.natives[getMojangOS()]
+            if(typeof nativeDescriptor === 'string'){
+                const classifierKey = nativeDescriptor.replace('${arch}', process.arch.replace('x', ''))
+                const nativeArtifact = downloads.classifiers[classifierKey]
+                if(nativeArtifact){
+                    const relativeNativePath = nativeArtifact.path
+                    if(typeof relativeNativePath !== 'string' || relativeNativePath.length === 0){
+                        loggerLaunchSuite?.warn?.(`Skipping native classifier ${classifierKey} for ${lib.name}, missing artifact path definition.`)
+                        continue
+                    }
+                    const destination = nodePath.join(librariesDir, relativeNativePath)
+                    await queueArtifact(lib.name, nativeArtifact, `@${classifierKey}`, destination, relativeNativePath)
+                }
+            }
+        }
+    }
+
+    if(assetsToDownload.length === 0){
+        return Array.from(forcedModulePathEntries)
+    }
+
+    loggerLaunchSuite.info(`Downloading ${assetsToDownload.length} missing mod loader librar${assetsToDownload.length === 1 ? 'y' : 'ies'}.`)
+
+    setLaunchDetails(Lang.queryJS('landing.dlAsync.downloadingFiles'))
+    setDownloadPercentage(0)
+
+    const totalSize = getExpectedDownloadSize(assetsToDownload)
+
+    await downloadQueue(assetsToDownload, received => {
+        if(totalSize > 0){
+            setDownloadPercentage(Math.trunc((received/totalSize)*100))
+        }
+    })
+
+    setDownloadPercentage(100)
+    remote.getCurrentWindow().setProgressBar(-1)
+
+    const failed = []
+    for(const asset of assetsToDownload){
+        if(!await validateLocalFile(asset.path, asset.algo, asset.hash)){
+            failed.push(asset.id)
+        }
+    }
+
+    if(failed.length > 0){
+        throw new Error(`Failed to validate mod loader libraries: ${failed.join(', ')}`)
+    }
+
+    setLaunchDetails(Lang.queryJS('landing.dlAsync.preparingToLaunch'))
+
+    return Array.from(forcedModulePathEntries.entries()).map(([absolutePath, relativePath]) => ({
+        absolutePath,
+        relativePath
+    }))
+}
+
 async function dlAsync(login = true) {
 
     // Login parameter is temporary for debug purposes. Allows testing the validation/downloads without
@@ -1183,6 +1362,56 @@ async function dlAsync(login = true) {
     )
 
     const modLoaderData = await distributionIndexProcessor.loadModLoaderVersionJson(serv)
+    const modulePathExtras = await ensureModLoaderLibraries(modLoaderData, loggerLaunchSuite) || []
+    if(modulePathExtras.length > 0){
+        modLoaderData.modulePathExtras = modulePathExtras
+    }
+    if(modulePathExtras.length > 0 && Array.isArray(modLoaderData?.arguments?.jvm)){
+        const modulePathIdx = modLoaderData.arguments.jvm.indexOf('-p')
+        if(modulePathIdx > -1){
+            const sep = ProcessBuilder.getClasspathSeparator()
+            const current = modLoaderData.arguments.jvm[modulePathIdx + 1] || ''
+            const existingEntries = current.split(sep).filter(Boolean)
+            const existingNormalized = new Set(existingEntries.map(entry => nodePath.normalize(entry)))
+            const librariesDir = nodePath.join(ConfigManager.getCommonDirectory(), 'libraries')
+            const placeholderRegex = /^\$\{library_directory\}[\\/]?/i
+            const existingRelative = new Set(existingEntries.map(entry => {
+                if(placeholderRegex.test(entry)){
+                    return entry.replace(placeholderRegex, '').replace(/\\/g, '/')
+                }
+                if(entry.startsWith(librariesDir)){
+                    return entry.substring(librariesDir.length + 1).replace(/\\/g, '/')
+                }
+                return null
+            }).filter(Boolean))
+
+            const additions = []
+            for(const extra of modulePathExtras){
+                if(typeof extra?.absolutePath !== 'string' || extra.absolutePath.length === 0){
+                    continue
+                }
+                const normalized = nodePath.normalize(extra.absolutePath)
+                const relative = typeof extra.relativePath === 'string' && extra.relativePath.length > 0
+                    ? extra.relativePath.replace(/\\/g, '/')
+                    : null
+                if(existingNormalized.has(normalized)){
+                    continue
+                }
+                if(relative != null && existingRelative.has(relative)){
+                    continue
+                }
+                existingNormalized.add(normalized)
+                if(relative != null){
+                    existingRelative.add(relative)
+                }
+                additions.push(normalized)
+            }
+
+            if(additions.length > 0){
+                modLoaderData.arguments.jvm[modulePathIdx + 1] = existingEntries.concat(additions).join(sep)
+            }
+        }
+    }
     const versionData = await mojangIndexProcessor.getVersionJson()
 
     if(login) {

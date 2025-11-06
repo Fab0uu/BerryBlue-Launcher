@@ -36,6 +36,18 @@ class ProcessBuilder {
         this.llDir = path.join(this.gameDir, 'liteloaderModList.json')
         this.libPath = path.join(this.commonDir, 'libraries')
 
+        this.modulePathEntrySet = Array.isArray(this.modManifest?.modulePathExtras)
+            ? this.modManifest.modulePathExtras.reduce((set, entry) => {
+                const candidate = typeof entry === 'object' && entry !== null
+                    ? entry.absolutePath ?? entry.path ?? entry
+                    : entry
+                if(typeof candidate === 'string' && candidate.length > 0){
+                    set.add(path.normalize(candidate))
+                }
+                return set
+            }, new Set())
+            : new Set()
+
         this.usingLiteLoader = false
         this.usingFabricLoader = false
         this.llPath = null
@@ -697,6 +709,16 @@ class ProcessBuilder {
 
         this._processClassPathList(cpArgs)
 
+        if(this.modulePathEntrySet != null && this.modulePathEntrySet.size > 0){
+            cpArgs = cpArgs.filter(entry => {
+                try {
+                    return !this.modulePathEntrySet.has(path.normalize(entry))
+                } catch (_err){
+                    return true
+                }
+            })
+        }
+
         return cpArgs
     }
 
@@ -836,7 +858,8 @@ class ProcessBuilder {
         for(let mdl of mdls){
             const type = mdl.rawModule.type
             if(type === Type.ForgeHosted || type === Type.Fabric || type === Type.Library){
-                libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
+                if (mdl.rawModule.classpath !== false)
+                    libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
                 if(mdl.subModules.length > 0){
                     const res = this._resolveModuleLibraries(mdl)
                     if(res.length > 0){
