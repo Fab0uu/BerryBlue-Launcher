@@ -62,6 +62,226 @@ const user_text               = document.getElementById('user_text')
 
 const loggerLanding = LoggerUtil.getLogger('Landing')
 
+// Remote server status refresh configuration.
+const SERVER_STATUS_ENDPOINT = 'https://api.eidolyth.fr/Server-Status/status.json'
+const SERVER_STATUS_REFRESH_INTERVAL = 5000
+
+// Cards configuration allows flexible mapping between launcher UI and API names.
+const SERVER_STATUS_CARDS = [
+    {
+        id: 'survie',
+        sourceKeys: ['survie'],
+        card: () => document.getElementById('serverCardSurvie'),
+        dot: () => document.getElementById('statusSurvie'),
+        text: () => document.querySelector('#serverCardSurvie .serverStatus')
+    },
+    {
+        id: 'anarchy',
+        sourceKeys: ['anarchy', 'minage'],
+        card: () => document.getElementById('serverCardAnarchy'),
+        dot: () => document.getElementById('statusAnarchy'),
+        text: () => document.querySelector('#serverCardAnarchy .serverStatus')
+    }
+]
+
+const SERVER_STATUS_STYLE = {
+    online:   { label: 'En ligne',      color: '#44ff44', glow: 'rgba(68, 255, 68, 0.6)' },
+    offline:  { label: 'Hors ligne',    color: '#ff4444', glow: 'rgba(255, 68, 68, 0.6)' },
+    maintenance: { label: 'Maintenance', color: '#ffaa00', glow: 'rgba(255, 170, 0, 0.6)' },
+    unknown:  { label: 'Indisponible', color: '#888888', glow: 'rgba(136, 136, 136, 0.6)' }
+}
+
+/**
+ * Apply a computed status state to a given UI card.
+ *
+ * @param {Object} cardConfig Card definition containing element resolvers.
+ * @param {Object} state Object containing label, color, and glow settings.
+ */
+function setServerStatusCardState(cardConfig, state){
+    const dotEl = typeof cardConfig.dot === 'function' ? cardConfig.dot() : null
+    const textEl = typeof cardConfig.text === 'function' ? cardConfig.text() : null
+
+    if(dotEl){
+        dotEl.style.background = state.color
+        dotEl.style.boxShadow = `0 0 6px ${state.glow}`
+    }
+    if(textEl){
+        textEl.textContent = state.label
+    }
+
+    const tooltipRefs = resolveServerStatusTooltip(cardConfig)
+    if(tooltipRefs?.container){
+        const players = Array.isArray(state.players) ? state.players : []
+        const hasPlayers = players.length > 0
+        const shouldShow = state.status === 'online' && hasPlayers
+
+        tooltipRefs.container.style.display = shouldShow ? '' : 'none'
+        tooltipRefs.container.setAttribute('data-visible', shouldShow ? 'true' : 'false')
+
+        if(tooltipRefs.list && tooltipRefs.empty){
+            tooltipRefs.list.innerHTML = ''
+            if(shouldShow){
+                tooltipRefs.empty.style.display = 'none'
+                for(const name of players){
+                    const item = document.createElement('li')
+                    item.textContent = name
+                    tooltipRefs.list.appendChild(item)
+                }
+            } else {
+                tooltipRefs.empty.style.display = ''
+            }
+        }
+    }
+}
+
+/**
+ * Build a display state from the API server descriptor.
+ *
+ * @param {Object} server API server entry.
+ * @returns {{label: string, color: string, glow: string}}
+ */
+function computeServerStatusState(server){
+    if(!server){
+        return { ...SERVER_STATUS_STYLE.unknown, players: [], status: 'unknown' }
+    }
+
+    if(server?.maintenance?.active){
+        return { ...SERVER_STATUS_STYLE.maintenance, players: [], status: 'maintenance' }
+    }
+
+    const normalized = typeof server.status === 'string'
+        ? server.status.toLowerCase()
+        : ''
+
+    if(normalized === 'online'){
+        const base = SERVER_STATUS_STYLE.online
+        const players = Array.isArray(server?.players?.list)
+            ? server.players.list.filter(name => typeof name === 'string' && name.trim().length > 0)
+            : []
+        const count = Number(server?.players?.count)
+        const resolvedCount = Number.isFinite(count) && count >= 0 ? count : players.length
+        return {
+            ...base,
+            label: `${base.label} • ${resolvedCount}`,
+            players,
+            status: 'online'
+        }
+    }
+
+    if(normalized === 'offline'){
+        return { ...SERVER_STATUS_STYLE.offline, players: [], status: 'offline' }
+    }
+
+    return { ...SERVER_STATUS_STYLE.unknown, players: [], status: 'unknown' }
+}
+
+/**
+ * Update all known cards based on the API payload.
+ *
+ * @param {Array<Object>} servers API server array.
+ */
+function updateServerStatusCards(servers){
+    const byName = new Map()
+
+    if(Array.isArray(servers)){
+        for(const entry of servers){
+            if(entry && typeof entry.name === 'string'){
+                byName.set(entry.name.toLowerCase(), entry)
+            }
+        }
+    }
+
+    for(const card of SERVER_STATUS_CARDS){
+        const source = card.sourceKeys
+            .map(key => typeof key === 'string' ? key.toLowerCase() : null)
+            .filter(Boolean)
+            .map(key => byName.get(key))
+            .find(Boolean)
+        const state = computeServerStatusState(source)
+        setServerStatusCardState(card, state)
+    }
+}
+
+/**
+ * Fetch the remote status JSON and refresh the UI cards.
+ */
+async function refreshServerStatuses(){
+    try {
+        const response = await fetch(SERVER_STATUS_ENDPOINT, { cache: 'no-store' })
+        if(!response.ok){
+            throw new Error(`HTTP ${response.status}`)
+        }
+
+        const payload = await response.json()
+        updateServerStatusCards(payload?.servers)
+    } catch(err){
+        loggerLanding.warn('Unable to refresh server status.', err)
+        updateServerStatusCards([])
+    }
+}
+
+let serverStatusTimer = null
+
+/**
+ * Initialize the auto-refresh loop if it has not already started.
+ */
+function ensureServerStatusPolling(){
+    if(serverStatusTimer == null){
+        refreshServerStatuses()
+        serverStatusTimer = setInterval(refreshServerStatuses, SERVER_STATUS_REFRESH_INTERVAL)
+    }
+}
+
+ensureServerStatusPolling()
+
+/**
+ * Ensure the tooltip container exists for the given server card.
+ *
+ * @param {Object} cardConfig
+ * @returns {{container: HTMLElement, list: HTMLElement, empty: HTMLElement}|null}
+ */
+function resolveServerStatusTooltip(cardConfig){
+    if(typeof cardConfig.card !== 'function'){
+        return null
+    }
+    const cardEl = cardConfig.card()
+    if(!cardEl){
+        return null
+    }
+    let tooltip = cardEl.querySelector('.serverStatusTooltip')
+    if(!tooltip){
+        tooltip = document.createElement('div')
+        tooltip.className = 'serverStatusTooltip'
+
+        const title = document.createElement('div')
+        title.className = 'serverStatusTooltip-title'
+        title.textContent = 'Joueurs connectés'
+
+        const empty = document.createElement('div')
+        empty.className = 'serverStatusTooltip-empty'
+        empty.textContent = 'Aucun joueur connecté'
+
+        const list = document.createElement('ul')
+        list.className = 'serverStatusTooltip-list'
+
+        tooltip.appendChild(title)
+        tooltip.appendChild(empty)
+        tooltip.appendChild(list)
+        cardEl.appendChild(tooltip)
+    }
+
+    const listEl = tooltip.querySelector('.serverStatusTooltip-list')
+    const emptyEl = tooltip.querySelector('.serverStatusTooltip-empty')
+    if(!listEl || !emptyEl){
+        return null
+    }
+    return {
+        container: tooltip,
+        list: listEl,
+        empty: emptyEl
+    }
+}
+
 document.getElementById('main')?.style.setProperty('display','block','important');
 document.getElementById('landingContainer')?.style.setProperty('display','block','important');
 

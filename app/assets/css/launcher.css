@@ -4303,10 +4303,13 @@ input:checked + .toggleSwitchSlider:before {
   transition: background 0.3s ease;
   --left-gap: 16px; 
   --right-gap: 16px;
+  position: relative;
+  z-index: 1;
 }
 
 .serverCard:hover {
   background: rgba(255, 255, 255, 0.1);
+  z-index: 3;
 }
 
 .serverCard-left {
@@ -4369,6 +4372,56 @@ grid-row: 1 / span 2;
   text-align: center;
   margin-top: 0; /* l'espacement est géré par row-gap */
   justify-self: center;
+}
+
+.serverStatusTooltip {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  transform: translateY(8px);
+  background: rgba(0, 0, 0, 0.85);
+  padding: 12px 14px;
+  border-radius: 8px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  z-index: 40;
+}
+
+.serverCard:hover .serverStatusTooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.serverStatusTooltip-title {
+  font-family: 'DTLProkyonTCapsLight';
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+  margin-bottom: 6px;
+}
+
+.serverStatusTooltip-empty {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.serverStatusTooltip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.serverStatusTooltip-list li {
+  white-space: nowrap;
 }
 #copyrightText {
   position: absolute;
