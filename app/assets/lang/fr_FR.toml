@@ -130,8 +130,8 @@ waitingText = "En attente de Microsoft..."
 continueButton = "CONTINUER"
 
 [js.discord]
-waiting = "En attente du client..."
-state = "Serveur : {shortId}"
+waiting = "Dans le launcheur"
+state = "Neoforge Cobblemon Technologique"
 
 [js.index]
 microsoftLoginTitle = "Connexion Microsoft"
@@ -210,9 +210,15 @@ checkConsoleForDetails = "Veuillez consulter la console (CTRL + Shift + i) pour 
 checking = "Vérification des actualités"
 
 [js.landing.discord]
-loading = "Chargement du jeu..."
-joining = "Navigation vers Westeros !"
+loading = "Dans les menus d'Eidolyth"
+joining = "Navigation vers Eidolyth !"
 joined = "Exploration du royaume !"
+serverStatus = "Est connecté sur : {server}"
+serverUnknown = "Eidolyth"
+
+[js.landing.discord.serverName]
+survie = "Survie"
+anarchy = "Anarchy"
 
 [js.overlay]
 dismiss = "Fermer"
@@ -296,8 +302,10 @@ loginButton = "Se connecter"
 selectAnotherAccountButton = "Sélectionner un autre compte"
 
 [js.uicore.autoUpdate]
-checkingForUpdateButton = "Vérification des mises à jour..."
-installNowButton = "Installer maintenant"
+  checkingForUpdateButton = "Vérification des mises à jour..."
+  installNowButton = "Installer maintenant"
+  versionBadgeAvailable = "Nouvelle version v{version}"
+  versionBadgeReady = "Installer v{version}"
 checkForUpdatesButton = "Vérifier les mises à jour"
 
 [js.auth.microsoft.error]

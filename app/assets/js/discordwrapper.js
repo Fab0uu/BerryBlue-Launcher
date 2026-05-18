@@ -12,18 +12,21 @@ let activity
 
 exports.initRPC = function(genSettings, servSettings, initialDetails = Lang.queryJS('discord.waiting')){
     client = new Client({ transport: 'ipc' })
-
     activity = {
         details: initialDetails,
         state: Lang.queryJS('discord.state', {shortId: servSettings.shortId}),
         largeImageKey: servSettings.largeImageKey,
         largeImageText: servSettings.largeImageText,
-        smallImageKey: genSettings.smallImageKey,
-        smallImageText: genSettings.smallImageText,
         startTimestamp: new Date().getTime(),
         instance: false
     }
 
+    if(typeof genSettings.smallImageKey === 'string' && genSettings.smallImageKey.length > 0){
+        activity.smallImageKey = genSettings.smallImageKey
+        if(typeof genSettings.smallImageText === 'string' && genSettings.smallImageText.length > 0){
+            activity.smallImageText = genSettings.smallImageText
+        }
+    }
     client.on('ready', () => {
         logger.info('Discord RPC Connected')
         client.setActivity(activity)
@@ -38,15 +41,18 @@ exports.initRPC = function(genSettings, servSettings, initialDetails = Lang.quer
     })
 }
 
-exports.updateDetails = function(details){
-    activity.details = details
-    client.setActivity(activity)
-}
-
 exports.shutdownRPC = function(){
     if(!client) return
     client.clearActivity()
     client.destroy()
     client = null
     activity = null
+}
+
+exports.updateDetails = function(details){
+    if(!client || !activity){
+        return
+    }
+    activity.details = details
+    client.setActivity(activity)
 }

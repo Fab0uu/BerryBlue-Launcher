@@ -2456,11 +2456,151 @@ input:checked + .toggleSwitchSlider:before {
 
 /* Main content container. */
 #landingContainer {
-    height: 100%;
-    position: relative;
-    transition: background 2s ease;
-    overflow-y: hidden;
-}
+      height: 100%;
+      position: relative;
+      transition: background 2s ease;
+      overflow-y: hidden;
+  }
+
+  /* Launcher version & copyright badges. */
+  #landingContainer .launcher-meta {
+      position: absolute;
+      right: 24px;
+      color: rgba(200, 200, 200, 0.7);
+      font-size: 0.8rem;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+      user-select: none;
+  }
+  
+  #landingContainer .launcher-meta--version {
+      top: 18px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      padding: 6px 16px;
+      background: rgba(6, 12, 18, 0.65);
+      backdrop-filter: blur(4px);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, padding 0.2s ease, transform 0.12s ease;
+  }
+  
+  #landingContainer #launcherVersionBadge {
+      color: rgba(220, 232, 236, 0.85);
+      overflow: visible;
+      position: absolute;
+      z-index: 1;
+  }
+  
+  #landingContainer #launcherVersionBadge:disabled {
+      cursor: default;
+      opacity: 0.9;
+  }
+  
+  #landingContainer #launcherVersionBadge[data-state="pending"] {
+      border-color: rgba(88, 216, 152, 0.45);
+      background: linear-gradient(125deg, rgba(21, 56, 44, 0.8), rgba(11, 28, 22, 0.85));
+      box-shadow: 0 8px 18px rgba(15, 52, 33, 0.45);
+  }
+  
+  #landingContainer #launcherVersionBadge[data-state="ready"] {
+      border-color: rgba(175, 255, 209, 0.9);
+      color: #0f271a;
+      background: linear-gradient(120deg, rgba(38, 158, 116, 0.92), rgba(58, 201, 132, 0.92));
+      box-shadow: 0 12px 28px rgba(24, 119, 82, 0.48);
+      padding: 9px 22px;
+      font-size: 0.85rem;
+  }
+  
+  #landingContainer #launcherVersionBadge.is-actionable:not(:disabled) {
+      cursor: pointer;
+  }
+  
+  #landingContainer #launcherVersionBadge.is-actionable:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 18px 36px rgba(30, 132, 91, 0.55);
+  }
+  
+  #landingContainer #launcherVersionBadge.is-actionable:not(:disabled):active {
+      transform: translateY(0px);
+  }
+  
+  #landingContainer #launcherVersionBadge::after {
+      content: '';
+      position: absolute;
+      inset: -10px;
+      border-radius: inherit;
+      background: radial-gradient(circle, rgba(120, 255, 210, 0.45) 0%, rgba(38, 158, 116, 0.0) 65%);
+      opacity: 0;
+      transform: scale(0.85);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      filter: blur(18px);
+      z-index: -1;
+      pointer-events: none;
+  }
+
+  #landingContainer #launcherVersionBadge[data-state="ready"]::after {
+      opacity: 1;
+      transform: scale(1.05);
+      animation: launcherBadgeGlow 3.5s ease-in-out infinite;
+  }
+
+  @keyframes launcherBadgeGlow {
+      0% {
+          opacity: 0.4;
+          filter: blur(8px);
+      }
+      50% {
+          opacity: 0.8;
+          filter: blur(2px);
+      }
+      100% {
+          opacity: 0.4;
+          filter: blur(8px);
+      }
+  }
+  
+  #landingContainer .launcher-meta__default,
+  #landingContainer .launcher-meta__cta {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+  }
+  
+  #landingContainer .launcher-meta__cta {
+      display: none;
+      font-weight: 600;
+  }
+  
+  #landingContainer #launcherVersionBadge[data-state="idle"] .launcher-meta__default {
+      display: inline-flex;
+  }
+  
+  #landingContainer #launcherVersionBadge[data-state="idle"] .launcher-meta__cta {
+      display: none;
+  }
+  
+  #landingContainer #launcherVersionBadge:not([data-state="idle"]) .launcher-meta__default {
+      display: none;
+  }
+  
+  #landingContainer #launcherVersionBadge:not([data-state="idle"]) .launcher-meta__cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+  }
+  
+  #landingContainer .launcher-meta__value {
+      font-weight: 600;
+      margin-left: 0.2em;
+  }
+  
+  #landingContainer .launcher-meta--copyright {
+      bottom: 18px;
+      pointer-events: none;
+  }
 
 /* Upper content container. */
 #landingContainer > #upper {
@@ -4320,6 +4460,7 @@ input:checked + .toggleSwitchSlider:before {
   gap: var(--left-gap, 10px); 
   grid-column: 1; 
   grid-row: 1 / span 2;
+  margin-top: -5px;
 }
 .serverCard-right {
 display: flex; 
@@ -4329,6 +4470,7 @@ justify-content: center;
 gap: var(--right-gap, 8px); 
 grid-column: 2; 
 grid-row: 1 / span 2;
+margin-top: 5px;
 }
 
 .serverIcon {

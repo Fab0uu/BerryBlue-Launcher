@@ -1,36 +1,79 @@
-# BerryBlue Launcher v1.0 – Your Gateway to the BerryBlue Server!
+# Eidolyth Launcher
 
-### The adventure starts here!
+Launcher Electron dedie au serveur Minecraft **Eidolyth**.
 
-We're excited to announce the official release of **BerryBlue Launcher**, specifically designed for the **BerryBlue Minecraft server**. This launcher is your exclusive gateway to our custom modpack and the exciting semi-RP environment of our community. Powered by the robust and open-source [Helios Launcher](https://github.com/dscalzi/HeliosLauncher), BerryBlue Launcher is dedicated solely to delivering the best experience on our server.
+Ce projet est base sur [Helios Launcher](https://github.com/dscalzi/HeliosLauncher) et adapte pour la distribution, l'authentification, l'interface et le flux de lancement propres a l'ecosysteme Eidolyth.
 
-![BerryBlue Launcher](https://github.com/user-attachments/assets/162507f7-8582-464f-b653-4dcb50a98d51)
+## Apercu
 
-## Key Features
+Eidolyth Launcher simplifie l'acces au serveur et a son modpack en gerant automatiquement :
 
-### 🔧 Simple and Customizable Interface
-Designed exclusively for the BerryBlue server, the launcher offers a clean, intuitive interface. With everything tailored to our modpack and server settings, you'll find it easy to get started with minimal setup time. No need to manage multiple modpacks—just jump straight into the action on BerryBlue.
+- la recuperation de la distribution du launcher
+- la verification et le telechargement des fichiers du jeu
+- le lancement de Minecraft avec la configuration Eidolyth
+- l'autoconnect au serveur
+- la gestion des comptes Microsoft
 
-### ⚡ Optimized for BerryBlue Modpack
-BerryBlue Launcher is fully integrated with the custom modpack developed for our server. Featuring **Cobblemon**, **Create**, **Applied Energistics 2**, **Mekanism**, and more, the launcher automatically handles mod updates and ensures you always have the latest version optimized for our community's adventures.
+## Fonctionnalites
 
-### 🔐 Seamless Account Management
-Easily manage your Minecraft account with secure login options. Whether you're a returning player or new to our server, logging in is quick and ensures your account data is safe while connected to the BerryBlue world.
+- Interface personnalisee pour Eidolyth
+- Verification et mise a jour automatiques des fichiers
+- Gestion du modpack et des bibliotheques via la distribution
+- Parametres Java et allocation memoire configurables
+- Journalisation integree pour le diagnostic
+- Build Windows via `electron-builder`
 
-### 🌍 Server-Specific Quick Join
-The launcher comes with a direct connection to the **BerryBlue Semi-RP Server**, allowing you to jump into the server with just one click. No complicated setup or mod installations—just log in, launch, and play in our thriving community.
+## Particularites du chargement des mods
 
-### 🛠 Customizable JVM Options for Optimized Performance
-For those who want to fine-tune their performance, BerryBlue Launcher offers advanced customization options. Adjust RAM allocation and tweak performance settings to make sure your gameplay is smooth, even in the most complex modded environments.
+Pour les versions NeoForge/Forge recentes, le launcher :
 
-### 📝 Built-in Error Logging and Diagnostics
-Encounter a technical issue? BerryBlue Launcher has integrated diagnostic tools to help you troubleshoot and resolve any problems quickly. The log viewer makes it easy to find and share logs for support, ensuring you spend more time playing and less time fixing.
+- construit `forgeMods.list`
+- lance le jeu avec `--fml.modLists`
+- materialise aussi les mods Forge actives dans `instance/mods`
 
-### 🌟 Automatic Updates for a Seamless Experience
-Never worry about manual updates again! With automatic modpack updates, BerryBlue Launcher ensures you always have the latest features, bug fixes, and improvements tailored to the BerryBlue server.
+Ce double mecanisme ameliore la compatibilite avec certains mods ou content packs qui attendent une presence physique dans `mods/` au runtime.
 
----
+## Developpement
 
-Join us on the **BerryBlue Minecraft server** and experience a unique and immersive modded gameplay experience like never before. With **BerryBlue Launcher**, you get a streamlined, optimized gateway to the ultimate semi-RP community.
+### Prerequis
 
-Your adventure on BerryBlue starts now—are you ready to embark on the journey?
+- Node.js 20
+- npm 11
+
+### Installation
+
+```bash
+npm install
+```
+
+### Lancement en developpement
+
+```bash
+npm start
+```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+## Build
+
+### Build Windows
+
+```bash
+npm run dist:win
+```
+
+Le setup genere se trouve dans `dist/`.
+
+## Configuration principale
+
+- Distribution distante : `https://api.eidolyth.fr/NeoNebula/root/distribution.json`
+- Statut serveur : `https://eidolyth.fr/status.json`
+
+## Credits
+
+- Base du projet : Helios Launcher par Daniel Scalzi
+- Adaptation Eidolyth : Fabrice Lozac'h et contributeurs du projet

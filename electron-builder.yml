@@ -1,6 +1,6 @@
 appId: 'Eidolyth'
 productName: 'Eidolyth Launcher'
-artifactName: '${productName}-setup-${version}.${ext}'
+artifactName: 'Eidolyth-Launcher-setup.${ext}'
 
 copyright: 'Copyright © 2024 Fabrice Lozach'
 
@@ -32,7 +32,7 @@ mac:
     - target: 'dmg'
       arch:
         - 'x64'
-  artifactName: '${productName}-setup-${version}.${ext}'
+  artifactName: 'Eidolyth-Launcher-setup.${ext}'
   category: 'public.app-category.games'
 
 # Linux Configuration

@@ -15,6 +15,61 @@ const Lang                           = require('./assets/js/langloader')
 const loggerUICore             = LoggerUtil.getLogger('UICore')
 const loggerAutoUpdater        = LoggerUtil.getLogger('AutoUpdater')
 
+const launcherUpdateBadgeState = {
+    version: null,
+    downloaded: false
+}
+
+function setLauncherUpdateBadge(version, downloaded){
+    launcherUpdateBadgeState.version = version
+    launcherUpdateBadgeState.downloaded = downloaded
+    refreshLauncherVersionBadge()
+}
+
+function clearLauncherUpdateBadge(){
+    launcherUpdateBadgeState.version = null
+    launcherUpdateBadgeState.downloaded = false
+    refreshLauncherVersionBadge()
+}
+
+function refreshLauncherVersionBadge(){
+    const badge = document.getElementById('launcherVersionBadge')
+    const ctaLabel = document.getElementById('launcherVersionCtaLabel')
+
+    if(!badge || !ctaLabel){
+        return
+    }
+
+    if(launcherUpdateBadgeState.version){
+        const labelKey = launcherUpdateBadgeState.downloaded ? 'uicore.autoUpdate.versionBadgeReady' : 'uicore.autoUpdate.versionBadgeAvailable'
+        ctaLabel.textContent = Lang.queryJS(labelKey, { version: launcherUpdateBadgeState.version })
+        badge.dataset.state = launcherUpdateBadgeState.downloaded ? 'ready' : 'pending'
+
+        if(launcherUpdateBadgeState.downloaded){
+            badge.disabled = false
+            badge.classList.add('is-actionable')
+            badge.onclick = () => {
+                if(!isDev){
+                    badge.disabled = true
+                    ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
+                } else {
+                    loggerAutoUpdater.warn('Cannot install updates in development environment.')
+                }
+            }
+        } else {
+            badge.disabled = true
+            badge.classList.remove('is-actionable')
+            badge.onclick = null
+        }
+    } else {
+        badge.dataset.state = 'idle'
+        badge.disabled = true
+        badge.classList.remove('is-actionable')
+        badge.onclick = null
+        ctaLabel.textContent = ''
+    }
+}
+
 // Log deprecation and process warnings.
 process.traceProcessWarnings = true
 process.traceDeprecation = true
@@ -40,6 +95,7 @@ if(!isDev){
                 break
             case 'update-available':
                 loggerAutoUpdater.info('New update available', info.version)
+                setLauncherUpdateBadge(info.version, false)
                 
                 if(process.platform === 'darwin'){
                     info.darwindownload = `https://github.com/dscalzi/HeliosLauncher/releases/download/v${info.version}/Helios-Launcher-setup-${info.version}${process.arch === 'arm64' ? '-arm64' : '-x64'}.dmg`
@@ -50,6 +106,7 @@ if(!isDev){
                 break
             case 'update-downloaded':
                 loggerAutoUpdater.info('Update ' + info.version + ' ready to be installed.')
+                setLauncherUpdateBadge(info.version, true)
                 settingsUpdateButtonStatus(Lang.queryJS('uicore.autoUpdate.installNowButton'), false, () => {
                     if(!isDev){
                         ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
@@ -59,6 +116,7 @@ if(!isDev){
                 break
             case 'update-not-available':
                 loggerAutoUpdater.info('No new update found.')
+                clearLauncherUpdateBadge()
                 settingsUpdateButtonStatus(Lang.queryJS('uicore.autoUpdate.checkForUpdatesButton'))
                 break
             case 'ready':
@@ -68,6 +126,7 @@ if(!isDev){
                 ipcRenderer.send('autoUpdateAction', 'checkForUpdate')
                 break
             case 'realerror':
+                clearLauncherUpdateBadge()
                 if(info != null && info.code != null){
                     if(info.code === 'ERR_UPDATER_INVALID_RELEASE_FEED'){
                         loggerAutoUpdater.info('No suitable releases found.')
@@ -84,6 +143,11 @@ if(!isDev){
                 break
         }
     })
+} else {
+    window.DEBUG_forceUpdateBadge = (version = '9.9.9', downloaded = false) => {
+        loggerAutoUpdater.info('[DEV] Forcing update badge state', version, downloaded)
+        setLauncherUpdateBadge(version, downloaded)
+    }
 }
 
 /**
@@ -129,6 +193,7 @@ $(function(){
 document.addEventListener('readystatechange', function () {
     if (document.readyState === 'interactive'){
         loggerUICore.info('UICore Initializing..')
+        refreshLauncherVersionBadge()
 
         // Bind close button.
         Array.from(document.getElementsByClassName('fCb')).map((val) => {
@@ -168,6 +233,7 @@ document.addEventListener('readystatechange', function () {
         })
 
     } else if(document.readyState === 'complete'){
+        refreshLauncherVersionBadge()
 
         //266.01
         //170.8

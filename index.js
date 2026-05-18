@@ -108,8 +108,18 @@ ipcMain.handle(SHELL_OPCODE.TRASH_ITEM, async (event, ...args) => {
 // https://electronjs.org/docs/tutorial/offscreen-rendering
 app.disableHardwareAcceleration()
 
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+    if(typeof url === 'string' && url.startsWith('https://eidolyth.fr/')){
+        event.preventDefault()
+        callback(true)
+        return
+    }
 
-const REDIRECT_URI_PREFIX = 'https://login.microsoftonline.com/common/oauth2/nativeclient?'
+    callback(false)
+})
+
+
+const REDIRECT_URI = 'https://login.microsoftonline.com/common/oauth2/nativeclient'
 
 // Microsoft Auth Login
 let msftAuthWindow
@@ -144,14 +154,23 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
     })
 
     msftAuthWindow.webContents.on('did-navigate', (_, uri) => {
-        if (uri.startsWith(REDIRECT_URI_PREFIX)) {
-            let queries = uri.substring(REDIRECT_URI_PREFIX.length).split('#', 1).toString().split('&')
-            let queryMap = {}
+        if (uri.startsWith(REDIRECT_URI)) {
+            const parsedURL = new URL(uri)
+            const queryMap = {}
 
-            queries.forEach(query => {
-                const [name, value] = query.split('=')
-                queryMap[name] = decodeURI(value)
-            })
+            for (const [name, value] of parsedURL.searchParams.entries()) {
+                queryMap[name] = value
+            }
+
+            const hashQuery = parsedURL.hash.startsWith('#') ? parsedURL.hash.substring(1) : parsedURL.hash
+            if (hashQuery.length > 0) {
+                const hashParams = new URLSearchParams(hashQuery)
+                for (const [name, value] of hashParams.entries()) {
+                    if (!Object.prototype.hasOwnProperty.call(queryMap, name)) {
+                        queryMap[name] = value
+                    }
+                }
+            }
 
             ipcEvent.reply(MSFT_OPCODE.REPLY_LOGIN, MSFT_REPLY_TYPE.SUCCESS, queryMap, msftAuthViewSuccess)
 
@@ -162,7 +181,14 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
     })
 
     msftAuthWindow.removeMenu()
-    msftAuthWindow.loadURL(`https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?prompt=select_account&client_id=${AZURE_CLIENT_ID}&response_type=code&scope=XboxLive.signin%20offline_access&redirect_uri=https://login.microsoftonline.com/common/oauth2/nativeclient`)
+    const microsoftAuthURL = new URL('https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize')
+    microsoftAuthURL.searchParams.set('prompt', 'select_account')
+    microsoftAuthURL.searchParams.set('client_id', AZURE_CLIENT_ID)
+    microsoftAuthURL.searchParams.set('response_type', 'code')
+    microsoftAuthURL.searchParams.set('response_mode', 'query')
+    microsoftAuthURL.searchParams.set('scope', 'XboxLive.signin offline_access')
+    microsoftAuthURL.searchParams.set('redirect_uri', REDIRECT_URI)
+    msftAuthWindow.loadURL(microsoftAuthURL.toString())
 })
 
 // Microsoft Auth Logout

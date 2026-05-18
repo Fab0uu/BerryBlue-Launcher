@@ -35,6 +35,8 @@ class ProcessBuilder {
         this.fmlDir = path.join(this.gameDir, 'forgeModList.json')
         this.llDir = path.join(this.gameDir, 'liteloaderModList.json')
         this.libPath = path.join(this.commonDir, 'libraries')
+        this.instanceModsDir = path.join(this.gameDir, 'mods')
+        this.managedInstanceModsFile = path.join(this.gameDir, '.launcher-managed-mods.json')
 
         this.modulePathEntrySet = Array.isArray(this.modManifest?.modulePathExtras)
             ? this.modManifest.modulePathExtras.reduce((set, entry) => {
@@ -65,6 +67,7 @@ class ProcessBuilder {
         this.usingFabricLoader = this.server.modules.some(mdl => mdl.rawModule.type === Type.Fabric)
         logger.info('Using fabric loader:', this.usingFabricLoader)
         const modObj = this.resolveModConfiguration(ConfigManager.getModConfiguration(this.server.rawServer.id).mods, this.server.modules)
+        this.prepareManagedInstanceMods(modObj.fMods)
         
         // Mod list below 1.13
         // Fabric only supports 1.14+
@@ -331,6 +334,59 @@ class ProcessBuilder {
             return []
         }
 
+    }
+
+    prepareManagedInstanceMods(mods){
+        if(this.usingFabricLoader){
+            logger.info('Managed instance mods staging skipped for Fabric-based launch.')
+            return
+        }
+
+        fs.ensureDirSync(this.instanceModsDir)
+
+        let previousManaged = []
+        if(fs.existsSync(this.managedInstanceModsFile)){
+            try {
+                const data = JSON.parse(fs.readFileSync(this.managedInstanceModsFile, 'utf-8'))
+                if(Array.isArray(data?.files)){
+                    previousManaged = data.files
+                }
+            } catch (err) {
+                logger.warn('Failed to read managed instance mods manifest.', err)
+            }
+        }
+
+        const currentManaged = []
+
+        for(const mod of mods){
+            if(mod.rawModule.type !== Type.ForgeMod){
+                continue
+            }
+            const source = mod.getPath()
+            const fileName = path.basename(source)
+            const destination = path.join(this.instanceModsDir, fileName)
+            fs.copyFileSync(source, destination)
+            currentManaged.push(fileName)
+            logger.info(`Staged managed instance mod ${fileName} to ${destination}`)
+        }
+
+        for(const fileName of previousManaged){
+            if(currentManaged.includes(fileName)){
+                continue
+            }
+            const managedPath = path.join(this.instanceModsDir, fileName)
+            try {
+                fs.removeSync(managedPath)
+            } catch (err) {
+                logger.warn(`Failed to remove stale managed instance mod ${fileName}`, err)
+            }
+        }
+
+        fs.writeFileSync(this.managedInstanceModsFile, JSON.stringify({ files: currentManaged }, null, 4), 'utf-8')
+        logger.info(`Managed instance mods ready: ${currentManaged.length} file(s) in ${this.instanceModsDir}`)
+        if(currentManaged.length > 0){
+            logger.info(`Managed instance mods list: ${currentManaged.join(', ')}`)
+        }
     }
 
     _processAutoConnectArg(args){
@@ -719,6 +775,20 @@ class ProcessBuilder {
             })
         }
 
+        const seenEntries = new Set()
+        cpArgs = cpArgs.filter(entry => {
+            try {
+                const normalized = path.normalize(entry)
+                if(seenEntries.has(normalized)){
+                    return false
+                }
+                seenEntries.add(normalized)
+                return true
+            } catch (_err){
+                return true
+            }
+        })
+
         return cpArgs
     }
 
@@ -862,7 +932,7 @@ class ProcessBuilder {
                     libs[mdl.getVersionlessMavenIdentifier()] = mdl.getPath()
                 if(mdl.subModules.length > 0){
                     const res = this._resolveModuleLibraries(mdl)
-                    if(res.length > 0){
+                    if(Object.keys(res).length > 0){
                         libs = {...libs, ...res}
                     }
                 }
@@ -873,7 +943,7 @@ class ProcessBuilder {
         for(let i=0; i<mods.length; i++){
             if(mods.sub_modules != null){
                 const res = this._resolveModuleLibraries(mods[i])
-                if(res.length > 0){
+                if(Object.keys(res).length > 0){
                     libs = {...libs, ...res}
                 }
             }
@@ -886,26 +956,26 @@ class ProcessBuilder {
      * Recursively resolve the path of each library required by this module.
      * 
      * @param {Object} mdl A module object from the server distro index.
-     * @returns {Array.<string>} An array containing the paths of each library this module requires.
+     * @returns {{[id: string]: string}} An object containing the paths of each library this module requires.
      */
     _resolveModuleLibraries(mdl){
         if(!mdl.subModules.length > 0){
-            return []
+            return {}
         }
-        let libs = []
+        let libs = {}
         for(let sm of mdl.subModules){
             if(sm.rawModule.type === Type.Library){
 
                 if(sm.rawModule.classpath ?? true) {
-                    libs.push(sm.getPath())
+                    libs[sm.getVersionlessMavenIdentifier()] = sm.getPath()
                 }
             }
             // If this module has submodules, we need to resolve the libraries for those.
             // To avoid unnecessary recursive calls, base case is checked here.
             if(mdl.subModules.length > 0){
                 const res = this._resolveModuleLibraries(sm)
-                if(res.length > 0){
-                    libs = libs.concat(res)
+                if(Object.keys(res).length > 0){
+                    libs = {...libs, ...res}
                 }
             }
         }

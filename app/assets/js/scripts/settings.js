@@ -1367,6 +1367,16 @@ function bindMinMaxRam(server) {
     settingsMaxRAMRange.setAttribute('min', SETTINGS_MIN_MEMORY)
     settingsMinRAMRange.setAttribute('max', SETTINGS_MAX_MEMORY)
     settingsMinRAMRange.setAttribute('min', SETTINGS_MIN_MEMORY)
+
+    const currentMax = Number(settingsMaxRAMRange.getAttribute('value'))
+    const currentMin = Number(settingsMinRAMRange.getAttribute('value'))
+
+    if(currentMax < SETTINGS_MIN_MEMORY){
+        settingsMaxRAMRange.setAttribute('value', SETTINGS_MIN_MEMORY)
+    }
+    if(currentMin < SETTINGS_MIN_MEMORY){
+        settingsMinRAMRange.setAttribute('value', SETTINGS_MIN_MEMORY)
+    }
 }
 
 /**

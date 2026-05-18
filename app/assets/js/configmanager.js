@@ -45,11 +45,10 @@ const firstLaunch = !fs.existsSync(configPath) && !fs.existsSync(configPathLEGAC
 
 exports.getAbsoluteMinRAM = function(ram){
     if(ram?.minimum != null) {
-        return ram.minimum/1024
+        return Math.max(4, ram.minimum/1024)
     } else {
         // Legacy behavior
-        const mem = os.totalmem()
-        return mem >= (6*1073741824) ? 3 : 2
+        return 4
     }
 }
 
@@ -507,6 +506,27 @@ exports.setModConfiguration = function(serverid, configuration){
 
 // Java Settings
 
+const DEFAULT_JAVA_17_JVM_OPTIONS = [
+    '-XX:+UseZGC',
+    '-XX:+ZGenerational'
+]
+
+const LEGACY_JAVA_17_G1_JVM_OPTIONS = [
+    '-XX:+UnlockExperimentalVMOptions',
+    '-XX:+UseG1GC',
+    '-XX:G1NewSizePercent=20',
+    '-XX:G1ReservePercent=20',
+    '-XX:MaxGCPauseMillis=50',
+    '-XX:G1HeapRegionSize=32M'
+]
+
+function arraysMatch(a, b) {
+    return Array.isArray(a)
+        && Array.isArray(b)
+        && a.length === b.length
+        && a.every((value, index) => value === b[index])
+}
+
 function defaultJavaConfig(effectiveJavaOptions, ram) {
     if(effectiveJavaOptions.suggestedMajor > 8) {
         return defaultJavaConfig17(ram)
@@ -534,14 +554,7 @@ function defaultJavaConfig17(ram) {
         minRAM: resolveSelectedRAM(ram),
         maxRAM: resolveSelectedRAM(ram),
         executable: null,
-        jvmOptions: [
-            '-XX:+UnlockExperimentalVMOptions',
-            '-XX:+UseG1GC',
-            '-XX:G1NewSizePercent=20',
-            '-XX:G1ReservePercent=20',
-            '-XX:MaxGCPauseMillis=50',
-            '-XX:G1HeapRegionSize=32M'
-        ],
+        jvmOptions: DEFAULT_JAVA_17_JVM_OPTIONS.slice(),
     }
 }
 
@@ -554,6 +567,9 @@ function defaultJavaConfig17(ram) {
 exports.ensureJavaConfig = function(serverid, effectiveJavaOptions, ram) {
     if(!Object.prototype.hasOwnProperty.call(config.javaConfig, serverid)) {
         config.javaConfig[serverid] = defaultJavaConfig(effectiveJavaOptions, ram)
+    } else if(effectiveJavaOptions.suggestedMajor > 8
+        && arraysMatch(config.javaConfig[serverid].jvmOptions, LEGACY_JAVA_17_G1_JVM_OPTIONS)) {
+        config.javaConfig[serverid].jvmOptions = DEFAULT_JAVA_17_JVM_OPTIONS.slice()
     }
 }
 

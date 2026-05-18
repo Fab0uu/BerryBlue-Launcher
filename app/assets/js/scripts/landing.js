@@ -37,6 +37,10 @@ let gameIsRunning = false      // true = on pense que le jeu tourne déjà
 
 // Is DiscordRPC enabled
 let hasRPC = false
+let trackedPlayerName = null
+const latestServerStatusStates = new Map()
+let detectedServerForRPC = null
+let lastDiscordDetails = null
 
 // Joined server regex
 // Change this if your server uses something different.
@@ -46,10 +50,154 @@ const MIN_LINGER = 5000
 
 // Internal Requirements
 const DiscordWrapper          = require('./assets/js/discordwrapper')
+const DiscordRPCConfig        = require('./assets/js/discordconfig')
 const ProcessBuilder          = require('./assets/js/processbuilder')
 const DropinCleanerUtil       = require('./assets/js/dropinmodutil')
 const fsExtra                 = require('fs-extra')
 const nodePath                = require('path')
+
+function getLocalDiscordRPCConfig(){
+    if(!DiscordRPCConfig?.enabled){
+        return null
+    }
+    const globalCfg = DiscordRPCConfig.global || {}
+    const serverCfg = DiscordRPCConfig.server || {}
+    const hasRequiredGlobal = typeof globalCfg.clientId === 'string' && globalCfg.clientId.length > 0
+    const hasSmallImage = ['smallImageKey', 'smallImageText']
+        .every(key => typeof globalCfg[key] === 'string' && globalCfg[key].length > 0)
+    const hasServer = ['shortId', 'largeImageKey', 'largeImageText']
+        .every(key => typeof serverCfg[key] === 'string' && serverCfg[key].length > 0)
+    if(!hasRequiredGlobal || !hasServer){
+        return null
+    }
+    return {
+        global: {
+            clientId: globalCfg.clientId,
+            smallImageKey: hasSmallImage ? globalCfg.smallImageKey : null,
+            smallImageText: hasSmallImage ? globalCfg.smallImageText : null
+        },
+        server: {
+            shortId: serverCfg.shortId,
+            largeImageKey: serverCfg.largeImageKey,
+            largeImageText: serverCfg.largeImageText
+        }
+    }
+}
+
+function setTrackedPlayerName(name){
+    const normalized = typeof name === 'string' ? name.trim() : ''
+    const next = normalized.length > 0 ? normalized : null
+    if(trackedPlayerName === next){
+        return
+    }
+    trackedPlayerName = next
+    if(trackedPlayerName == null){
+        detectedServerForRPC = null
+    }
+}
+
+function tryLangQuery(key, placeholders, fallback){
+    try {
+        const text = Lang.queryJS(key, placeholders)
+        if(typeof text === 'string' && text.length > 0){
+            return text
+        }
+    } catch(err){
+        // Missing translation, fallback below.
+    }
+    if(typeof fallback === 'function'){
+        return fallback()
+    }
+    return fallback
+}
+
+function getServerLabelForDiscord(serverId){
+    if(!serverId){
+        return tryLangQuery('landing.discord.serverUnknown', null, 'Eidolyth')
+    }
+    return tryLangQuery(`landing.discord.serverName.${serverId}`, null, () => serverId.charAt(0).toUpperCase() + serverId.slice(1))
+}
+
+function detectTrackedPlayerServer(){
+    if(!trackedPlayerName){
+        return null
+    }
+    const normalized = trackedPlayerName.toLowerCase()
+    for(const card of SERVER_STATUS_CARDS){
+        const state = latestServerStatusStates.get(card.id)
+        if(!state || !Array.isArray(state.players)){
+            continue
+        }
+        const found = state.players.some(name => typeof name === 'string' && name.toLowerCase() === normalized)
+        if(found){
+            return card.id
+        }
+    }
+    return null
+}
+
+function setDiscordDetails(detail){
+    if(!hasRPC || typeof detail !== 'string' || detail.length === 0){
+        return
+    }
+    if(detail === lastDiscordDetails){
+        return
+    }
+    lastDiscordDetails = detail
+    DiscordWrapper.updateDetails(detail)
+}
+
+function syncRpcServerStatus(force = false){
+    if(!hasRPC || !gameIsRunning){
+        return false
+    }
+    const detected = detectTrackedPlayerServer()
+    if(detected){
+        if(!force && detected === detectedServerForRPC){
+            return true
+        }
+        detectedServerForRPC = detected
+        const label = getServerLabelForDiscord(detected)
+        const detail = tryLangQuery('landing.discord.serverStatus', { server: label }, `Session ${label}`)
+        setDiscordDetails(detail)
+        return true
+    }
+    if(force){
+        detectedServerForRPC = null
+    }
+    return false
+}
+
+const shouldPersistRPC = getLocalDiscordRPCConfig() !== null
+
+function resolveDiscordRPCConfig(distro, serv){
+    const localConfig = getLocalDiscordRPCConfig()
+    if(localConfig != null){
+        return localConfig
+    }
+    if(distro?.rawDistribution?.discord != null && serv?.rawServer?.discord != null){
+        return {
+            global: distro.rawDistribution.discord,
+            server: serv.rawServer.discord
+        }
+    }
+    return null
+}
+
+function initializeLauncherRichPresence(){
+    if(!shouldPersistRPC){
+        return
+    }
+    const rpcConfig = resolveDiscordRPCConfig()
+    if(rpcConfig != null){
+        const waitingText = Lang.queryJS('discord.waiting')
+        DiscordWrapper.initRPC(rpcConfig.global, rpcConfig.server, waitingText)
+        hasRPC = true
+        lastDiscordDetails = waitingText
+    }
+}
+
+initializeLauncherRichPresence()
 
 // Launch Elements
 const launch_content          = document.getElementById('launch_content')
@@ -63,7 +211,7 @@ const user_text               = document.getElementById('user_text')
 const loggerLanding = LoggerUtil.getLogger('Landing')
 
 // Remote server status refresh configuration.
-const SERVER_STATUS_ENDPOINT = 'https://api.eidolyth.fr/Server-Status/status.json'
+const SERVER_STATUS_ENDPOINT = 'https://eidolyth.fr/status.json'
 const SERVER_STATUS_REFRESH_INTERVAL = 5000
 
 // Cards configuration allows flexible mapping between launcher UI and API names.
@@ -145,20 +293,20 @@ function computeServerStatusState(server){
         return { ...SERVER_STATUS_STYLE.unknown, players: [], status: 'unknown' }
     }
 
-    if(server?.maintenance?.active){
+    if(server?.maintenance === true || server?.maintenance?.active){
         return { ...SERVER_STATUS_STYLE.maintenance, players: [], status: 'maintenance' }
     }
 
     const normalized = typeof server.status === 'string'
         ? server.status.toLowerCase()
-        : ''
+        : (server.online === true ? 'online' : (server.online === false ? 'offline' : ''))
 
     if(normalized === 'online'){
         const base = SERVER_STATUS_STYLE.online
         const players = Array.isArray(server?.players?.list)
             ? server.players.list.filter(name => typeof name === 'string' && name.trim().length > 0)
             : []
-        const count = Number(server?.players?.count)
+        const count = Number(server?.players?.count ?? server?.players_online)
         const resolvedCount = Number.isFinite(count) && count >= 0 ? count : players.length
         return {
             ...base,
@@ -178,7 +326,7 @@ function computeServerStatusState(server){
 /**
  * Update all known cards based on the API payload.
  *
- * @param {Array<Object>} servers API server array.
+ * @param {Array<Object>|Object<string, Object>} servers API server collection.
  */
 function updateServerStatusCards(servers){
     const byName = new Map()
@@ -187,6 +335,12 @@ function updateServerStatusCards(servers){
         for(const entry of servers){
             if(entry && typeof entry.name === 'string'){
                 byName.set(entry.name.toLowerCase(), entry)
+            }
+        }
+    } else if(servers && typeof servers === 'object'){
+        for(const [name, entry] of Object.entries(servers)){
+            if(typeof name === 'string' && entry && typeof entry === 'object'){
+                byName.set(name.toLowerCase(), entry)
             }
         }
     }
@@ -199,7 +353,11 @@ function updateServerStatusCards(servers){
             .find(Boolean)
         const state = computeServerStatusState(source)
         setServerStatusCardState(card, state)
+        latestServerStatusStates.set(card.id, state)
     }
+
+    syncLegacyServerDots()
+    syncRpcServerStatus()
 }
 
 /**
@@ -1031,6 +1189,7 @@ function updateSelectedAccount(authUser) {
     if (!userText || !avatarContainer) return // évite tout plantage si supprimé
 
     let username = Lang.queryJS('landing.selectedAccount.noAccountSelected')
+    setTrackedPlayerName(authUser?.displayName || null)
     if (authUser != null) {
         if (authUser.displayName != null) {
             username = authUser.displayName
@@ -1088,18 +1247,49 @@ const toColor = (state) => {
   return colorMap.red;
 };
 
-if (dotSurvie) dotSurvie.style.backgroundColor = toColor(mcSurvie);
-if (txtSurvie) txtSurvie.textContent = mcSurvie ? 'ONLINE' : 'OFFLINE';
+function syncLegacyServerDots(){
+  const survieState = latestServerStatusStates.get('survie')
+  const anarchyState = latestServerStatusStates.get('anarchy')
 
-if (dotCrea) dotCrea.style.backgroundColor = toColor(mcCreaMohist);
-if (txtCrea) {
-  if (mcCreaMohist) {
-    const n = Number.isFinite(crea_count) ? crea_count : 0;
-    txtCrea.textContent = `${n} JOUEUR${n>1?'S':''}`;
-  } else {
-    txtCrea.textContent = 'OFFLINE';
+  const survieStatus = survieState?.status === 'maintenance'
+    ? 'maintenance'
+    : survieState?.status === 'online'
+      ? true
+      : false
+
+  const anarchyStatus = anarchyState?.status === 'maintenance'
+    ? 'maintenance'
+    : anarchyState?.status === 'online'
+      ? true
+      : false
+
+  const anarchyCountText = typeof anarchyState?.label === 'string'
+    ? anarchyState.label.match(/•\s*(\d+)/)
+    : null
+  const anarchyCount = anarchyCountText ? Number(anarchyCountText[1]) : 0
+
+  if (dotSurvie) dotSurvie.style.backgroundColor = toColor(survieStatus)
+  if (txtSurvie) {
+    txtSurvie.textContent = survieStatus === 'maintenance'
+      ? 'MAINTENANCE'
+      : survieStatus
+        ? 'ONLINE'
+        : 'OFFLINE'
+  }
+
+  if (dotCrea) dotCrea.style.backgroundColor = toColor(anarchyStatus)
+  if (txtCrea) {
+    if (anarchyStatus === 'maintenance') {
+      txtCrea.textContent = 'MAINTENANCE'
+    } else if (anarchyStatus) {
+      txtCrea.textContent = `${anarchyCount} JOUEUR${anarchyCount > 1 ? 'S' : ''}`
+    } else {
+      txtCrea.textContent = 'OFFLINE'
+    }
   }
 }
+
+syncLegacyServerDots()
 
 /**
  * Shows an error overlay, toggles off the launch area.
@@ -1636,6 +1826,7 @@ async function dlAsync(login = true) {
 
     if(login) {
         const authUser = ConfigManager.getSelectedAccount()
+        setTrackedPlayerName(authUser?.displayName || null)
         loggerLaunchSuite.info(`Sending selected account (${authUser.displayName}) to ProcessBuilder.`)
         let pb = new ProcessBuilder(serv, versionData, modLoaderData, authUser, remote.app.getVersion())
         setLaunchDetails(Lang.queryJS('landing.dlAsync.launchingGame'))
@@ -1651,7 +1842,7 @@ async function dlAsync(login = true) {
             resetLaunchButtonUI()
 
             if(hasRPC){
-                DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.loading'))
+                setDiscordDetails(Lang.queryJS('landing.discord.loading'))
                 proc.stdout.on('data', gameStateChange)
             }
 
@@ -1681,9 +1872,11 @@ async function dlAsync(login = true) {
         const gameStateChange = function(data){
             data = data.trim()
             if(SERVER_JOINED_REGEX.test(data)){
-                DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.joined'))
+                if(!syncRpcServerStatus(true)){
+                    setDiscordDetails(Lang.queryJS('landing.discord.joined'))
+                }
             } else if(GAME_JOINED_REGEX.test(data)){
-                DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.joining'))
+                setDiscordDetails(Lang.queryJS('landing.discord.joining'))
             }
         }
 
@@ -1713,9 +1906,12 @@ async function dlAsync(login = true) {
             setLaunchDetails(Lang.queryJS('landing.dlAsync.doneEnjoyServer'))
 
             // Init Discord Hook
-            if(distro.rawDistribution.discord != null && serv.rawServer.discord != null){
-                DiscordWrapper.initRPC(distro.rawDistribution.discord, serv.rawServer.discord)
+            const rpcConfig = resolveDiscordRPCConfig(distro, serv)
+            if(rpcConfig != null && !hasRPC){
+                const waitingText = Lang.queryJS('discord.waiting')
+                DiscordWrapper.initRPC(rpcConfig.global, rpcConfig.server, waitingText)
                 hasRPC = true
+                lastDiscordDetails = waitingText
             }
 
             // quand le jeu se ferme :
@@ -1727,10 +1923,17 @@ async function dlAsync(login = true) {
 
                 // on coupe RPC si actif
                 if(hasRPC){
-                    loggerLaunchSuite.info('Shutting down Discord Rich Presence..')
-                    DiscordWrapper.shutdownRPC()
-                    hasRPC = false
+                    if(shouldPersistRPC){
+                        setDiscordDetails(Lang.queryJS('discord.waiting'))
+                    } else {
+                        loggerLaunchSuite.info('Shutting down Discord Rich Presence..')
+                        DiscordWrapper.shutdownRPC()
+                        hasRPC = false
+                        lastDiscordDetails = null
+                    }
                 }
+
+                detectedServerForRPC = null
 
                 proc = null
 

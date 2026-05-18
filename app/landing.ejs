@@ -1,4 +1,21 @@
 <div id="landingContainer" style="display: none;">
+    <button
+        id="launcherVersionBadge"
+        class="launcher-meta launcher-meta--version"
+        type="button"
+        aria-live="polite"
+        data-state="idle"
+        disabled>
+        <span class="launcher-meta__default" id="launcherVersionDefault">
+            Launcher v<span id="launcherVersion" class="launcher-meta__value">--</span>
+        </span>
+        <span class="launcher-meta__cta" id="launcherVersionCta">
+            <span id="launcherVersionCtaLabel"></span>
+        </span>
+    </button>
+    <div class="launcher-meta launcher-meta--copyright">
+        &copy; Eidolyth 2025
+    </div>
     <div id="upper">
         <div id="mediaContent">
             <div class="mediaContainer" id="settingsMediaButton">

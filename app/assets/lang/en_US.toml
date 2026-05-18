@@ -131,8 +131,8 @@ continueButton = "CONTINUE"
 
 
 [js.discord]
-waiting = "Waiting for Client.."
-state = "Server: {shortId}"
+waiting = "Preparing the Eidolyth expedition"
+state = "Destination: {shortId}"
 
 [js.index]
 microsoftLoginTitle = "Microsoft Login"
@@ -211,9 +211,15 @@ checkConsoleForDetails = "Please check the console (CTRL + Shift + i) for more d
 checking = "Checking for News"
 
 [js.landing.discord]
-loading = "Loading game.."
+loading = "In the Eidolyth menus"
 joining = "Sailing to Westeros!"
 joined = "Exploring the Realm!"
+serverStatus = "Expedition across {server}"
+serverUnknown = "Eidolyth"
+
+[js.landing.discord.serverName]
+survie = "Survie"
+anarchy = "Anarchy"
 
 [js.overlay]
 dismiss = "Dismiss"
@@ -297,9 +303,11 @@ loginButton = "Login"
 selectAnotherAccountButton = "Select Another Account"
 
 [js.uicore.autoUpdate]
-checkingForUpdateButton = "Checking for Updates..."
-installNowButton = "Install Now"
-checkForUpdatesButton = "Check for Updates"
+  checkingForUpdateButton = "Checking for Updates..."
+  installNowButton = "Install Now"
+  checkForUpdatesButton = "Check for Updates"
+  versionBadgeAvailable = "Update v{version}"
+  versionBadgeReady = "Install v{version}"
 
 [js.auth.microsoft.error]
 noProfileTitle = "Error During Login:<br>Profile Not Set Up"
