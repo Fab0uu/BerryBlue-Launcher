@@ -5,6 +5,7 @@
     <script src="./assets/js/scripts/uicore.js"></script>
     <script src="./assets/js/scripts/uibinder.js"></script>
     <link type="text/css" rel="stylesheet" href="./assets/css/launcher.css">
+    <link type="text/css" rel="stylesheet" href="./assets/css/launcher-redesign.css">
     <style>
         body {
             /* Unifier la couleur initiale avec le 1er slide pour éviter le flash */
@@ -15,7 +16,7 @@
         #main {
             display: none;
             height: calc(100% - 22px);
-            background: linear-gradient(to top, rgba(0, 0, 0, 0.75) 0%, rgba(0, 0, 0, 0) 100%);
+            background: transparent;
             width: 100%;
             position: absolute;
             z-index: 10;
@@ -28,7 +29,7 @@
 <div id="introOverlay" aria-hidden="true" style="position:fixed; inset:0; background:#24202b; z-index:9999; pointer-events:none; opacity:1;">
   <div class="curtain"></div>
 </div>
-<body bkid="<%=bkid%>" data-intro="1">
+<body class="eidolyth-premium" bkid="<%=bkid%>" data-intro="1">
     <%- include('frame') %>
     <div id="main">
         <%- include('welcome') %>

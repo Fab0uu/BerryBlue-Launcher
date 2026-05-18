@@ -114,7 +114,18 @@ async function showMainUI(data){
     updateSelectedServer(data.getServerById(ConfigManager.getSelectedServer()))
     setTimeout(() => {
         document.getElementById('frameBar').style.backgroundColor = 'rgba(0, 0, 0, 0.5)'
-        document.body.style.backgroundImage = `url('assets/images/background.jpg')`
+        if(document.body.classList.contains('eidolyth-premium')){
+            document.body.style.removeProperty('background')
+            document.body.style.removeProperty('background-image')
+            document.body.style.removeProperty('background-repeat')
+            document.body.style.removeProperty('background-size')
+            document.body.style.removeProperty('background-position')
+        } else {
+            document.body.style.setProperty('background-image', `url('assets/images/background.jpg')`)
+            document.body.style.setProperty('background-repeat', 'no-repeat')
+            document.body.style.setProperty('background-size', 'cover')
+            document.body.style.setProperty('background-position', 'center center')
+        }
         $('#main').show()
 
         const isLoggedIn = Object.keys(ConfigManager.getAuthAccounts()).length > 0

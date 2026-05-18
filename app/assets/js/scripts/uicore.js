@@ -15,59 +15,115 @@ const Lang                           = require('./assets/js/langloader')
 const loggerUICore             = LoggerUtil.getLogger('UICore')
 const loggerAutoUpdater        = LoggerUtil.getLogger('AutoUpdater')
 
-const launcherUpdateBadgeState = {
+const launcherUpdateSealState = {
     version: null,
     downloaded: false
 }
 
-function setLauncherUpdateBadge(version, downloaded){
-    launcherUpdateBadgeState.version = version
-    launcherUpdateBadgeState.downloaded = downloaded
-    refreshLauncherVersionBadge()
+function setLauncherUpdateSeal(version, downloaded){
+    launcherUpdateSealState.version = version
+    launcherUpdateSealState.downloaded = downloaded
+    refreshLauncherUpdateSeal()
 }
 
-function clearLauncherUpdateBadge(){
-    launcherUpdateBadgeState.version = null
-    launcherUpdateBadgeState.downloaded = false
-    refreshLauncherVersionBadge()
+function clearLauncherUpdateSeal(){
+    launcherUpdateSealState.version = null
+    launcherUpdateSealState.downloaded = false
+    refreshLauncherUpdateSeal()
 }
 
-function refreshLauncherVersionBadge(){
-    const badge = document.getElementById('launcherVersionBadge')
-    const ctaLabel = document.getElementById('launcherVersionCtaLabel')
+function resolveDarwinDownloadUrl(info){
+    if(info == null || typeof info.version !== 'string' || info.version.length === 0){
+        return null
+    }
 
-    if(!badge || !ctaLabel){
+    const releaseBase = `https://github.com/Fab0uu/Eidolyth-Launcher/releases/download/v${info.version}/`
+    if(Array.isArray(info.files)){
+        const dmgFile = info.files.find(file => typeof file?.url === 'string' && file.url.toLowerCase().endsWith('.dmg'))
+        if(dmgFile != null){
+            return dmgFile.url.startsWith('http') ? dmgFile.url : `${releaseBase}${dmgFile.url.replace(/^\/+/, '')}`
+        }
+    }
+
+    return `${releaseBase}Eidolyth-Launcher-setup.dmg`
+}
+
+async function openLauncherUpdateView(sourceElement){
+    if(sourceElement != null && typeof sourceElement.blur === 'function'){
+        sourceElement.blur()
+    }
+
+    if(typeof prepareSettings === 'function'){
+        await prepareSettings()
+    }
+
+    if(getCurrentView() === VIEWS.settings){
+        settingsNavItemListener(document.getElementById('settingsNavUpdate'), false)
         return
     }
 
-    if(launcherUpdateBadgeState.version){
-        const labelKey = launcherUpdateBadgeState.downloaded ? 'uicore.autoUpdate.versionBadgeReady' : 'uicore.autoUpdate.versionBadgeAvailable'
-        ctaLabel.textContent = Lang.queryJS(labelKey, { version: launcherUpdateBadgeState.version })
-        badge.dataset.state = launcherUpdateBadgeState.downloaded ? 'ready' : 'pending'
+    switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
+        settingsNavItemListener(document.getElementById('settingsNavUpdate'), false)
+    })
+}
 
-        if(launcherUpdateBadgeState.downloaded){
-            badge.disabled = false
-            badge.classList.add('is-actionable')
-            badge.onclick = () => {
-                if(!isDev){
-                    badge.disabled = true
-                    ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
-                } else {
-                    loggerAutoUpdater.warn('Cannot install updates in development environment.')
-                }
-            }
-        } else {
-            badge.disabled = true
-            badge.classList.remove('is-actionable')
-            badge.onclick = null
-        }
-    } else {
-        badge.dataset.state = 'idle'
-        badge.disabled = true
-        badge.classList.remove('is-actionable')
-        badge.onclick = null
-        ctaLabel.textContent = ''
+function installLauncherUpdate(sourceElement){
+    if(sourceElement != null && typeof sourceElement.blur === 'function'){
+        sourceElement.blur()
     }
+
+    if(!isDev){
+        if(sourceElement != null){
+            sourceElement.disabled = true
+        }
+        ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
+    } else {
+        loggerAutoUpdater.warn('Cannot install updates in development environment.')
+    }
+}
+
+function refreshLauncherUpdateSeal(){
+    const seal = document.getElementById('image_seal_container')
+    const tooltip = document.getElementById('updateAvailableTooltip')
+
+    if(!seal || !tooltip){
+        return
+    }
+
+    const idleTooltipLabel = Lang.queryJS('landing.updateAvailableTooltip')
+    seal.removeAttribute('update')
+    seal.removeAttribute('data-update-state')
+    seal.removeAttribute('aria-describedby')
+    seal.classList.remove('is-actionable')
+    seal.disabled = true
+    seal.onclick = null
+    seal.setAttribute('aria-label', 'Eidolyth')
+    tooltip.textContent = idleTooltipLabel
+
+    if(!launcherUpdateSealState.version){
+        return
+    }
+
+    const isDownloaded = launcherUpdateSealState.downloaded
+    const tooltipLabel = Lang.queryJS(
+        isDownloaded ? 'uicore.autoUpdate.versionBadgeReady' : 'uicore.autoUpdate.versionBadgeAvailable',
+        { version: launcherUpdateSealState.version }
+    )
+
+    seal.setAttribute('update', 'true')
+    seal.dataset.updateState = isDownloaded ? 'ready' : 'pending'
+    seal.setAttribute('aria-describedby', 'updateAvailableTooltip')
+    seal.setAttribute('aria-label', tooltipLabel)
+    seal.classList.add('is-actionable')
+    seal.disabled = false
+    seal.onclick = async () => {
+        if(isDownloaded){
+            installLauncherUpdate(seal)
+        } else {
+            await openLauncherUpdateView(seal)
+        }
+    }
+    tooltip.textContent = tooltipLabel
 }
 
 // Log deprecation and process warnings.
@@ -95,28 +151,27 @@ if(!isDev){
                 break
             case 'update-available':
                 loggerAutoUpdater.info('New update available', info.version)
-                setLauncherUpdateBadge(info.version, false)
-                
+                setLauncherUpdateSeal(info.version, false)
+
                 if(process.platform === 'darwin'){
-                    info.darwindownload = `https://github.com/dscalzi/HeliosLauncher/releases/download/v${info.version}/Helios-Launcher-setup-${info.version}${process.arch === 'arm64' ? '-arm64' : '-x64'}.dmg`
-                    showUpdateUI(info)
+                    info.darwindownload = resolveDarwinDownloadUrl(info)
                 }
-                
+
                 populateSettingsUpdateInformation(info)
                 break
             case 'update-downloaded':
                 loggerAutoUpdater.info('Update ' + info.version + ' ready to be installed.')
-                setLauncherUpdateBadge(info.version, true)
+                setLauncherUpdateSeal(info.version, true)
                 settingsUpdateButtonStatus(Lang.queryJS('uicore.autoUpdate.installNowButton'), false, () => {
                     if(!isDev){
                         ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
                     }
                 })
-                showUpdateUI(info)
                 break
             case 'update-not-available':
                 loggerAutoUpdater.info('No new update found.')
-                clearLauncherUpdateBadge()
+                clearLauncherUpdateSeal()
+                populateSettingsUpdateInformation(null)
                 settingsUpdateButtonStatus(Lang.queryJS('uicore.autoUpdate.checkForUpdatesButton'))
                 break
             case 'ready':
@@ -126,7 +181,9 @@ if(!isDev){
                 ipcRenderer.send('autoUpdateAction', 'checkForUpdate')
                 break
             case 'realerror':
-                clearLauncherUpdateBadge()
+                clearLauncherUpdateSeal()
+                populateSettingsUpdateInformation(null)
+                settingsUpdateButtonStatus(Lang.queryJS('uicore.autoUpdate.checkForUpdatesButton'))
                 if(info != null && info.code != null){
                     if(info.code === 'ERR_UPDATER_INVALID_RELEASE_FEED'){
                         loggerAutoUpdater.info('No suitable releases found.')
@@ -145,9 +202,10 @@ if(!isDev){
     })
 } else {
     window.DEBUG_forceUpdateBadge = (version = '9.9.9', downloaded = false) => {
-        loggerAutoUpdater.info('[DEV] Forcing update badge state', version, downloaded)
-        setLauncherUpdateBadge(version, downloaded)
+        loggerAutoUpdater.info('[DEV] Forcing launcher update seal state', version, downloaded)
+        setLauncherUpdateSeal(version, downloaded)
     }
+    window.DEBUG_forceUpdateSeal = window.DEBUG_forceUpdateBadge
 }
 
 /**
@@ -162,29 +220,6 @@ function changeAllowPrerelease(val){
     ipcRenderer.send('autoUpdateAction', 'allowPrereleaseChange', val)
 }
 
-function showUpdateUI(info){
-    //TODO Make this message a bit more informative `${info.version}`
-    document.getElementById('image_seal_container').setAttribute('update', true)
-    document.getElementById('image_seal_container').onclick = () => {
-        /*setOverlayContent('Update Available', 'A new update for the launcher is available. Would you like to install now?', 'Install', 'Later')
-        setOverlayHandler(() => {
-            if(!isDev){
-                ipcRenderer.send('autoUpdateAction', 'installUpdateNow')
-            } else {
-                console.error('Cannot install updates in development environment.')
-                toggleOverlay(false)
-            }
-        })
-        setDismissHandler(() => {
-            toggleOverlay(false)
-        })
-        toggleOverlay(true, true)*/
-        switchView(getCurrentView(), VIEWS.settings, 500, 500, () => {
-            settingsNavItemListener(document.getElementById('settingsNavUpdate'), false)
-        })
-    }
-}
-
 /* jQuery Example
 $(function(){
     loggerUICore.info('UICore Initialized');
@@ -193,7 +228,7 @@ $(function(){
 document.addEventListener('readystatechange', function () {
     if (document.readyState === 'interactive'){
         loggerUICore.info('UICore Initializing..')
-        refreshLauncherVersionBadge()
+        refreshLauncherUpdateSeal()
 
         // Bind close button.
         Array.from(document.getElementsByClassName('fCb')).map((val) => {
@@ -233,21 +268,7 @@ document.addEventListener('readystatechange', function () {
         })
 
     } else if(document.readyState === 'complete'){
-        refreshLauncherVersionBadge()
-
-        //266.01
-        //170.8
-        //53.21
-        // Bind progress bar length to length of bot wrapper
-        //const targetWidth = document.getElementById("launch_content").getBoundingClientRect().width
-        //const targetWidth2 = document.getElementById("server_selection").getBoundingClientRect().width
-        //const targetWidth3 = document.getElementById("launch_button").getBoundingClientRect().width
-
-        document.getElementById('launch_details').style.maxWidth = 266.01
-        document.getElementById('launch_progress').style.width = 170.8
-        document.getElementById('launch_details_right').style.maxWidth = 170.8
-        document.getElementById('launch_progress_label').style.width = 53.21
-        
+        refreshLauncherUpdateSeal()
     }
 
 }, false)

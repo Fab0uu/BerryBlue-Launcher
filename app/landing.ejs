@@ -1,98 +1,68 @@
 <div id="landingContainer" style="display: none;">
-    <button
-        id="launcherVersionBadge"
-        class="launcher-meta launcher-meta--version"
-        type="button"
-        aria-live="polite"
-        data-state="idle"
-        disabled>
-        <span class="launcher-meta__default" id="launcherVersionDefault">
-            Launcher v<span id="launcherVersion" class="launcher-meta__value">--</span>
-        </span>
-        <span class="launcher-meta__cta" id="launcherVersionCta">
-            <span id="launcherVersionCtaLabel"></span>
-        </span>
-    </button>
     <div class="launcher-meta launcher-meta--copyright">
-        &copy; Eidolyth 2025
+        <span>Launcher v<span id="launcherVersion" class="launcher-meta__value">--</span></span>
+        <span class="launcher-meta__separator">•</span>
+        <span>&copy; Eidolyth 2025</span>
     </div>
+
     <div id="upper">
-        <div id="mediaContent">
-            <div class="mediaContainer" id="settingsMediaButton">
-                <img src="assets/images/icons/custom/settings.svg" class="mediaSVG" alt="paramètres">
-                <span class="mediaLabel">paramètres</span>
-            </div>
-            <div class="mediaContainer" id="modsMediaButton">
-                <img src="assets/images/icons/custom/mods.svg" class="mediaSVG" alt="mods">
-                <span class="mediaLabel">mods</span>
-            </div>
-            <div class="mediaContainer">
-                <img src="assets/images/icons/custom/actus.svg" class="mediaSVG" alt="actus">
-                <span class="mediaLabel">actus</span>
-            </div>
-            <div class="mediaContainer" id="websiteMediaButton">
-                <img src="assets/images/icons/custom/link.svg" class="mediaSVG" alt="site web">
-                <span class="mediaLabel">site web</span>
-            </div>
-            <div class="mediaContainer" id="discordMediaButton">
-                <img src="assets/images/icons/custom/discord.svg" class="mediaSVG" alt="discord">
-                <span class="mediaLabel">discord</span>
-            </div>
-        </div>
-        <div id="content">
-            <div style="position:absolute; z-index:-1;">
-                <img id="menuBgLogo"
-                    src="assets/images/logos/logobckgrnd.png"
-                    loading="eager"
-                    fetchpriority="high"
-                    decoding="sync"
-                    style="position:absolute; left:-280px; top:90px; width:450px; height:443px;">
-            </div>
-        </div>
-        <div id="right">
-            <div id="rightContainer">
-                <!-- === SERVER CARDS === -->
-                <div class="serverCard" id="serverCardSurvie">
-                    <div class="serverCard-left">
-                        <img src="assets/images/icons/custom/survie.svg" alt="Survie" class="serverIcon">
-                        <div class="serverStatusDot" id="statusSurvie"></div>
-                    </div>
-                    <div class="serverCard-right">
-                        <div class="serverName">Survie</div>
-                        <div class="serverStatus">Offline</div>
-                    </div>
-                </div>
-                <div class="serverCard" id="serverCardAnarchy">
-                    <div class="serverCard-left">
-                        <img src="assets/images/icons/custom/anarchy.svg" alt="Anarchy" class="serverIcon">
-                        <div class="serverStatusDot" id="statusAnarchy"></div>
-                    </div>
-                    <div class="serverCard-right">
-                        <div class="serverName">Anarchy</div>
-                        <div class="serverStatus">Offline</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div id="lower">
-        <div id="center">
-            <div class="bot_wrapper">
-                <div id="content">
-                </div>
-            </div>
-        </div> 
-        <div id="right">
-            <div class="bot_wrapper">
-                <div id="launch_content">
-                    <button id="launch_button">
-                        <span class="launch_text"><%- lang('landing.launchButton') %></span>
-                        <span class="launch_loading_text">Chargement...</span>
-                        <span class="launch_progress_text">0%</span>
-                        <div class="launch_fill"></div>
+        <div id="left">
+            <div class="landing-sidebar-shell">
+                <button id="image_seal_container" type="button" aria-label="EIDOLYTH" disabled>
+                    <img id="image_seal" src="assets/images/logos/logobckgrnd.png" alt="Eidolyth">
+                    <div id="updateAvailableTooltip" role="status" aria-live="polite"><%- lang('landing.updateAvailableTooltip') %></div>
+                </button>
+
+                <div id="mediaContent">
+                    <button class="mediaContainer" id="settingsMediaButton" type="button">
+                        <img src="assets/images/icons/custom/settings.svg" class="mediaSVG" alt="paramètres">
+                        <span class="mediaLabel">paramètres</span>
                     </button>
-                    <!--<div class="bot_divider"></div>
-                    <button id="server_selection_button" class="bot_label"><%- lang('landing.launchButtonPlaceholder') %></button>-->
+                    <button class="mediaContainer" id="modsMediaButton" type="button">
+                        <img src="assets/images/icons/custom/mods.svg" class="mediaSVG" alt="mods">
+                        <span class="mediaLabel">mods</span>
+                    </button>
+                    <button class="mediaContainer" id="newsMediaButton" type="button">
+                        <img src="assets/images/icons/custom/actus.svg" class="mediaSVG" alt="actualités">
+                        <span class="mediaLabel">actus</span>
+                    </button>
+                    <button class="mediaContainer" id="websiteMediaButton" type="button">
+                        <img src="assets/images/icons/custom/link.svg" class="mediaSVG" alt="site web">
+                        <span class="mediaLabel">site web</span>
+                    </button>
+                    <button class="mediaContainer" id="discordMediaButton" type="button">
+                        <img src="assets/images/icons/custom/discord.svg" class="mediaSVG" alt="discord">
+                        <span class="mediaLabel">discord</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="content">
+            <div class="landing-heroShell">
+                <div class="landing-heroBackdrop">
+                    <div class="landing-heroGlow"></div>
+                    <div class="landing-heroLogoWrap">
+                        <img
+                            id="menuBgLogo"
+                            src="assets/images/logos/logobckgrnd.png"
+                            loading="eager"
+                            fetchpriority="high"
+                            decoding="sync"
+                            alt="Logo Eidolyth">
+                    </div>
+                </div>
+                <div class="landing-heroCopy">
+                    <span class="landing-overline">Launcher officiel</span>
+                    <h1 class="landing-title">Eidolyth</h1>
+                    <p class="landing-summary">
+                        Une interface plus nette, plus stable et prête a vous faire entrer en jeu sans friction.
+                    </p>
+                    <div class="landing-signalRow">
+                        <span class="landing-signalPill">Cobblemon</span>
+                        <span class="landing-signalPill">Create</span>
+                        <span class="landing-signalPill">Addons</span>
+                    </div>
                 </div>
                 <div id="launch_details">
                     <div id="launch_details_left">
@@ -100,12 +70,160 @@
                         <div class="bot_divider"></div>
                     </div>
                     <div id="launch_details_right">
-                        <progress id="launch_progress" value="22" max="100"></progress>
+                        <progress id="launch_progress" value="0" max="100"></progress>
                         <span id="launch_details_text" class="bot_label"><%- lang('landing.launchDetails') %></span>
                     </div>
                 </div>
             </div>
         </div>
+
+        <div id="right">
+            <div id="rightContainer">
+                <div id="user_content">
+                    <div class="landing-sectionHeader">
+                        <span class="landing-sectionHeader__title">Compte actif</span>
+                        <span class="landing-sectionHeader__meta">Session</span>
+                    </div>
+                    <div class="landing-accountSurface">
+                        <div id="avatarContainer">
+                            <button id="avatarOverlay" type="button">GERER</button>
+                        </div>
+                        <div id="user_text"><%- lang('landing.usernamePlaceholder') %></div>
+                    </div>
+                </div>
+
+                <div class="landing-serversSurface">
+                    <div class="landing-sectionHeader">
+                        <span class="landing-sectionHeader__title">Serveurs</span>
+                        <span class="landing-sectionHeader__meta">Etat</span>
+                    </div>
+
+                    <div class="serverCard" id="serverCardSurvie">
+                        <div class="serverCard-left">
+                            <img src="assets/images/icons/custom/survie.svg" alt="Survie" class="serverIcon">
+                            <div class="serverStatusDot" id="statusSurvie"></div>
+                        </div>
+                        <div class="serverCard-right">
+                            <div class="serverName">Survie</div>
+                            <div class="serverStatus">Offline</div>
+                        </div>
+                    </div>
+
+                    <div class="serverCard" id="serverCardAnarchy">
+                        <div class="serverCard-left">
+                            <img src="assets/images/icons/custom/anarchy.svg" alt="Anarchy" class="serverIcon">
+                            <div class="serverStatusDot" id="statusAnarchy"></div>
+                        </div>
+                        <div class="serverCard-right">
+                            <div class="serverName">Anarchy</div>
+                            <div class="serverStatus">Offline</div>
+                        </div>
+                    </div>
+
+                    <div class="landing-serversMeta">
+                        <div id="mojangStatusWrapper" class="landing-statusChip landing-statusChip--embedded">
+                            <span id="mojang_status_icon">●</span>
+                            <span class="landing-statusChip__label"><%- lang('landing.mojangStatus') %></span>
+                            <div id="mojangStatusTooltip">
+                                <div id="mojangStatusTooltipTitle"><%- lang('landing.mojangStatusTooltipTitle') %></div>
+                                <div id="mojangStatusTooltipBody">
+                                    <div class="mojangStatusContainer">
+                                        <span class="mojangStatusIcon">●</span>
+                                        <span class="mojangStatusName">Verification...</span>
+                                        <span class="mojangStatusState">...</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <div id="lower">
+        <div id="left">
+            <div id="content"></div>
+        </div>
+
+        <div id="center">
+            <div class="bot_wrapper">
+                <div id="content">
+                    <div id="launch_content">
+                        <div class="launch-shell">
+                            <button id="launch_button" type="button">
+                                <span class="launch_text"><%- lang('landing.launchButton') %></span>
+                                <span class="launch_loading_text">Chargement...</span>
+                                <span class="launch_progress_text">0%</span>
+                                <div class="launch_fill"></div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="right">
+            <div class="bot_wrapper"></div>
+        </div>
+    </div>
+
+    <div id="newsContainer" style="display: none;">
+        <div id="newsContent">
+            <div id="newsStatusContainer">
+                <div id="newsStatusContent">
+                    <div id="newsTitleContainer">
+                        <a id="newsArticleTitle" href="#" target="_blank" rel="noopener noreferrer"></a>
+                    </div>
+                    <div id="newsMetaContainer">
+                        <div id="newsArticleDateWrapper">
+                            <span id="newsArticleDate"></span>
+                        </div>
+                        <div id="newsArticleAuthorWrapper">
+                            <span id="newsArticleAuthor"></span>
+                        </div>
+                        <a id="newsArticleComments" href="#" target="_blank" rel="noopener noreferrer"></a>
+                    </div>
+                </div>
+                <div id="newsNavigationContainer">
+                    <button id="newsNavigateLeft" type="button" aria-label="Article precedent">
+                        <svg id="newsNavigationLeftSVG" viewBox="0 0 24.87 13.97" aria-hidden="true">
+                            <defs>
+                                <style>.arrowLine{fill:none;stroke:#FFF;stroke-width:2px;transition:0.25s ease;}</style>
+                            </defs>
+                            <polyline class="arrowLine" points="0.71 13.26 12.56 1.41 24.16 13.02"/>
+                        </svg>
+                    </button>
+                    <span id="newsNavigationStatus">--</span>
+                    <button id="newsNavigateRight" type="button" aria-label="Article suivant">
+                        <svg id="newsNavigationRightSVG" viewBox="0 0 24.87 13.97" aria-hidden="true">
+                            <defs>
+                                <style>.arrowLine{fill:none;stroke:#FFF;stroke-width:2px;transition:0.25s ease;}</style>
+                            </defs>
+                            <polyline class="arrowLine" points="0.71 13.26 12.56 1.41 24.16 13.02"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="newsArticleContainer">
+                <div id="newsArticleContentScrollable"></div>
+
+                <div id="newsErrorContainer">
+                    <div id="newsErrorLoading" class="newsErrorContent">
+                        <span id="nELoadSpan"><%- lang('landing.newsErrorLoadSpan') %></span>
+                    </div>
+                    <div id="newsErrorFailed" style="display: none;">
+                        <span class="newsErrorContent"><%- lang('landing.newsErrorFailedSpan') %></span>
+                        <button id="newsErrorRetry" type="button"><%- lang('landing.newsErrorRetryButton') %></button>
+                    </div>
+                    <div id="newsErrorNone" style="display: none;">
+                        <span class="newsErrorContent"><%- lang('landing.newsErrorNoneSpan') %></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="./assets/js/scripts/landing.js"></script>
 </div>

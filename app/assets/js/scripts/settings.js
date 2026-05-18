@@ -238,10 +238,23 @@ let selectedSettingsTab = 'settingsTabAccount'
  * @param {UIEvent} e The scroll event.
  */
 function settingsTabScrollListener(e){
-    if(e.target.scrollTop > Number.parseFloat(getComputedStyle(e.target.firstElementChild).marginTop)){
-        document.getElementById('settingsContainer').setAttribute('scrolled', '')
+    if(e == null || e.target == null){
+        return
+    }
+
+    const settingsContainer = document.getElementById('settingsContainer')
+    if(settingsContainer == null){
+        return
+    }
+
+    const firstChild = e.target.firstElementChild
+    const marginTop = firstChild != null ? Number.parseFloat(getComputedStyle(firstChild).marginTop) : 0
+    const threshold = Number.isFinite(marginTop) ? marginTop : 0
+
+    if(e.target.scrollTop > threshold){
+        settingsContainer.setAttribute('scrolled', '')
     } else {
-        document.getElementById('settingsContainer').removeAttribute('scrolled')
+        settingsContainer.removeAttribute('scrolled')
     }
 }
 
@@ -251,11 +264,31 @@ function settingsTabScrollListener(e){
 function setupSettingsTabs(){
     Array.from(document.getElementsByClassName('settingsNavItem')).map((val) => {
         if(val.hasAttribute('rSc')){
-            val.onclick = () => {
+            val.onclick = (e) => {
+                if(e != null){
+                    e.preventDefault()
+                    e.stopPropagation()
+                }
                 settingsNavItemListener(val)
             }
         }
     })
+}
+
+function syncSettingsTabState(tabId){
+    const tabs = Array.from(document.getElementsByClassName('settingsTab'))
+    for(const tab of tabs){
+        const isActive = tab.id === tabId
+        tab.style.display = isActive ? 'block' : 'none'
+        tab.onscroll = isActive ? settingsTabScrollListener : null
+    }
+
+    const activeTab = document.getElementById(tabId)
+    if(activeTab != null){
+        settingsTabScrollListener({
+            target: activeTab
+        })
+    }
 }
 
 /**
@@ -266,9 +299,19 @@ function setupSettingsTabs(){
  * @param {boolean} fade Optional. True to fade transition.
  */
 function settingsNavItemListener(ele, fade = true){
-    if(ele.hasAttribute('selected')){
+    if(ele == null || !ele.hasAttribute('rSc')){
         return
     }
+
+    const nextTab = ele.getAttribute('rSc')
+    const prevTab = selectedSettingsTab
+    const prevTabElement = document.getElementById(prevTab)
+    const nextTabElement = document.getElementById(nextTab)
+
+    if(nextTabElement == null){
+        return
+    }
+
     const navItems = document.getElementsByClassName('settingsNavItem')
     for(let i=0; i<navItems.length; i++){
         if(navItems[i].hasAttribute('selected')){
@@ -276,34 +319,29 @@ function settingsNavItemListener(ele, fade = true){
         }
     }
     ele.setAttribute('selected', '')
-    let prevTab = selectedSettingsTab
-    selectedSettingsTab = ele.getAttribute('rSc')
+    selectedSettingsTab = nextTab
 
-    document.getElementById(prevTab).onscroll = null
-    document.getElementById(selectedSettingsTab).onscroll = settingsTabScrollListener
+    if(prevTab === nextTab){
+        syncSettingsTabState(nextTab)
+        return
+    }
+
+    if(prevTabElement == null){
+        syncSettingsTabState(nextTab)
+        return
+    }
 
     if(fade){
-        $(`#${prevTab}`).fadeOut(250, () => {
-            $(`#${selectedSettingsTab}`).fadeIn({
-                duration: 250,
-                start: () => {
-                    settingsTabScrollListener({
-                        target: document.getElementById(selectedSettingsTab)
-                    })
-                }
+        $(prevTabElement).stop(true, true).fadeOut(180, () => {
+            syncSettingsTabState(nextTab)
+            $(nextTabElement).stop(true, true).hide().fadeIn(180, () => {
+                settingsTabScrollListener({
+                    target: nextTabElement
+                })
             })
         })
     } else {
-        $(`#${prevTab}`).hide(0, () => {
-            $(`#${selectedSettingsTab}`).show({
-                duration: 0,
-                start: () => {
-                    settingsTabScrollListener({
-                        target: document.getElementById(selectedSettingsTab)
-                    })
-                }
-            })
-        })
+        syncSettingsTabState(nextTab)
     }
 }
 
@@ -324,10 +362,22 @@ function fullSettingsSave() {
     ConfigManager.save()
 }
 
+function closeSettingsView() {
+    try {
+        fullSettingsSave()
+    } catch(err){
+        console.error('Unable to fully save settings before leaving the view.', err)
+    }
+    switchView(VIEWS.settings, VIEWS.landing)
+}
+
 /* Closes the settings view and saves all data. */
-settingsNavDone.onclick = () => {
-    fullSettingsSave()
-    switchView(getCurrentView(), VIEWS.landing)
+settingsNavDone.onclick = (e) => {
+    if(e != null){
+        e.preventDefault()
+        e.stopPropagation()
+    }
+    closeSettingsView()
 }
 
 /**
@@ -809,6 +859,9 @@ function bindModsToggleSwitch(){
 function saveModConfiguration(){
     const serv = ConfigManager.getSelectedServer()
     const modConf = ConfigManager.getModConfiguration(serv)
+    if(modConf == null || modConf.mods == null){
+        return
+    }
     modConf.mods = _saveModConfiguration(modConf.mods)
     ConfigManager.setModConfiguration(serv, modConf)
 }
@@ -821,6 +874,9 @@ function saveModConfiguration(){
 function _saveModConfiguration(modConf){
     for(let m of Object.entries(modConf)){
         const tSwitch = settingsModsContainer.querySelectorAll(`[formod='${m[0]}']`)
+        if(tSwitch.length === 0){
+            continue
+        }
         if(!tSwitch[0].hasAttribute('dropin')){
             if(typeof m[1] === 'boolean'){
                 modConf[m[0]] = tSwitch[0].checked
@@ -1242,6 +1298,7 @@ function bindRangeSlider(){
 
         // The magic happens when we click on the track.
         track.onmousedown = (e) => {
+            e.preventDefault()
 
             // Stop moving the track on mouse up.
             document.onmouseup = (e) => {
@@ -1251,15 +1308,16 @@ function bindRangeSlider(){
 
             // Move slider according to the mouse position.
             document.onmousemove = (e) => {
+                const rect = v.getBoundingClientRect()
 
                 // Distance from the beginning of the bar in pixels.
-                const diff = e.pageX - v.offsetLeft - track.offsetWidth/2
-                
+                const diff = e.clientX - rect.left
+
                 // Don't move the track off the bar.
-                if(diff >= 0 && diff <= v.offsetWidth-track.offsetWidth/2){
+                if(diff >= 0 && diff <= rect.width){
 
                     // Convert the difference to a percentage.
-                    const perc = (diff/v.offsetWidth)*100
+                    const perc = (diff/rect.width)*100
                     // Calculate the percentage of the closest notch.
                     const notch = Number(perc/sliderMeta.inc).toFixed(0)*sliderMeta.inc
 
@@ -1510,6 +1568,8 @@ function settingsUpdateButtonStatus(text, disabled = false, handler = null){
     settingsUpdateActionButton.disabled = disabled
     if(handler != null){
         settingsUpdateActionButton.onclick = handler
+    } else if(disabled){
+        settingsUpdateActionButton.onclick = null
     }
 }
 

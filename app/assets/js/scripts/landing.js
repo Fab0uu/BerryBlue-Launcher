@@ -1,5 +1,6 @@
 ﻿// Requirements
 const { URL }                 = require('url')
+const https                   = require('https')
 const {
     MojangRestAPI,
     getServerStatus
@@ -207,8 +208,294 @@ const launch_progress_label   = document.getElementById('launch_progress_label')
 const launch_details_text     = document.getElementById('launch_details_text')
 const server_selection_button = document.getElementById('server_selection_button') || { innerHTML: '', onclick: null, style: {} }
 const user_text               = document.getElementById('user_text')
+const mojang_status_icon      = document.getElementById('mojang_status_icon')
+const mojangStatusTooltip     = document.getElementById('mojangStatusTooltip')
+const mojangStatusTooltipBody = document.getElementById('mojangStatusTooltipBody')
+const mojangStatusWrapper     = document.getElementById('mojangStatusWrapper')
+
+if (server_selection_button && typeof server_selection_button.onclick !== 'function') {
+    server_selection_button.onclick = async () => {
+        if (typeof toggleServerSelection === 'function') {
+            await toggleServerSelection(true)
+        }
+    }
+}
 
 const loggerLanding = LoggerUtil.getLogger('Landing')
+
+const MOJANG_STATUS_REFRESH_INTERVAL = 120000
+const MOJANG_STATUS_TIMEOUT = 4500
+const MOJANG_STATUS_SERVICES = [
+    { key: 'auth', labelKey: 'landing.mojangStatus.auth', url: 'https://authserver.mojang.com/' },
+    { key: 'session', labelKey: 'landing.mojangStatus.session', url: 'https://sessionserver.mojang.com/' },
+    { key: 'api', labelKey: 'landing.mojangStatus.api', url: 'https://api.mojang.com/' },
+    { key: 'minecraftServices', labelKey: 'landing.mojangStatus.minecraftServices', url: 'https://api.minecraftservices.com/' },
+    { key: 'textures', labelKey: 'landing.mojangStatus.textures', url: 'https://textures.minecraft.net/' }
+]
+
+let mojangStatusCache = null
+let mojangStatusInflight = null
+let mojangStatusRefreshTimer = null
+
+function getMojangStatusColor(state){
+    switch(state){
+        case 'online':
+            return '#22c55e'
+        case 'degraded':
+            return '#f59e0b'
+        case 'offline':
+            return '#ef4444'
+        default:
+            return '#94a3b8'
+    }
+}
+
+function getMojangStatusLabel(state){
+    switch(state){
+        case 'online':
+            return Lang.queryJS('landing.mojangStatus.online')
+        case 'degraded':
+            return Lang.queryJS('landing.mojangStatus.degraded')
+        case 'offline':
+            return Lang.queryJS('landing.mojangStatus.offline')
+        default:
+            return Lang.queryJS('landing.mojangStatus.unavailable')
+    }
+}
+
+function setMojangOverallIndicator(state){
+    if(mojang_status_icon){
+        mojang_status_icon.style.color = getMojangStatusColor(state)
+    }
+}
+
+function renderMojangStatusRows(rows){
+    if(!mojangStatusTooltipBody){
+        return
+    }
+
+    mojangStatusTooltipBody.innerHTML = rows.map((row) => `
+        <div class="mojangStatusContainer">
+            <span class="mojangStatusIcon" style="color: ${row.color}">●</span>
+            <span class="mojangStatusName">${row.label}</span>
+            <span class="mojangStatusState">${row.stateLabel}</span>
+        </div>
+    `).join('')
+}
+
+function renderMojangStatusLoading(){
+    renderMojangStatusRows([{
+        color: getMojangStatusColor('unknown'),
+        label: Lang.queryJS('landing.mojangStatus.checking'),
+        stateLabel: '...'
+    }])
+}
+
+function summarizeMojangStates(states){
+    if(states.some((entry) => entry.state === 'offline')){
+        return 'offline'
+    }
+    if(states.some((entry) => entry.state === 'degraded')){
+        return 'degraded'
+    }
+    if(states.every((entry) => entry.state === 'online')){
+        return 'online'
+    }
+    return 'unknown'
+}
+
+function probeMojangService(service){
+    return new Promise((resolve) => {
+        const target = new URL(service.url)
+        const request = https.request({
+            protocol: target.protocol,
+            hostname: target.hostname,
+            path: target.pathname + target.search,
+            method: 'GET',
+            timeout: MOJANG_STATUS_TIMEOUT,
+            headers: {
+                'User-Agent': 'EidolythLauncher/1.0',
+                'Accept': '*/*'
+            }
+        }, (response) => {
+            response.resume()
+
+            const statusCode = typeof response.statusCode === 'number' ? response.statusCode : 0
+            let state = 'offline'
+
+            if(statusCode >= 200 && statusCode < 500){
+                state = 'online'
+            } else if(statusCode >= 500){
+                state = 'degraded'
+            }
+
+            resolve({
+                key: service.key,
+                label: Lang.queryJS(service.labelKey),
+                state,
+                statusCode
+            })
+        })
+
+        request.on('timeout', () => {
+            request.destroy(new Error('timeout'))
+        })
+
+        request.on('error', () => {
+            resolve({
+                key: service.key,
+                label: Lang.queryJS(service.labelKey),
+                state: 'offline',
+                statusCode: null
+            })
+        })
+
+        request.end()
+    })
+}
+
+async function refreshMojangStatuses(force = false){
+    const now = Date.now()
+
+    if(!force && mojangStatusCache != null && now - mojangStatusCache.updatedAt < MOJANG_STATUS_REFRESH_INTERVAL){
+        return mojangStatusCache
+    }
+
+    if(mojangStatusInflight != null){
+        return mojangStatusInflight
+    }
+
+    renderMojangStatusLoading()
+
+    mojangStatusInflight = Promise.all(MOJANG_STATUS_SERVICES.map((service) => probeMojangService(service)))
+        .then((services) => {
+            const summary = summarizeMojangStates(services)
+            const payload = {
+                services,
+                summary,
+                updatedAt: Date.now()
+            }
+
+            mojangStatusCache = payload
+            setMojangOverallIndicator(summary)
+            renderMojangStatusRows(services.map((service) => ({
+                color: getMojangStatusColor(service.state),
+                label: service.label,
+                stateLabel: getMojangStatusLabel(service.state)
+            })))
+
+            return payload
+        })
+        .catch(() => {
+            const fallback = {
+                services: [],
+                summary: 'offline',
+                updatedAt: Date.now()
+            }
+
+            mojangStatusCache = fallback
+            setMojangOverallIndicator('offline')
+            renderMojangStatusRows([{
+                color: getMojangStatusColor('offline'),
+                label: Lang.queryJS('landing.mojangStatus.unavailable'),
+                stateLabel: getMojangStatusLabel('offline')
+            }])
+
+            return fallback
+        })
+        .finally(() => {
+            mojangStatusInflight = null
+        })
+
+    return mojangStatusInflight
+}
+
+if(mojangStatusWrapper){
+    setMojangOverallIndicator('unknown')
+    renderMojangStatusLoading()
+    refreshMojangStatuses(true)
+
+    if(mojangStatusTooltip && mojangStatusTooltip.parentElement !== document.body){
+        document.body.appendChild(mojangStatusTooltip)
+    }
+
+    const positionMojangStatusTooltip = (clientX, clientY) => {
+        if(!mojangStatusTooltip){
+            return
+        }
+
+        const gap = 14
+        const margin = 18
+        const rect = mojangStatusTooltip.getBoundingClientRect()
+        const width = rect.width || 300
+        const height = rect.height || 160
+        const rawLeft = clientX - width - gap
+        const rawTop = clientY - (height / 2)
+        const maxLeft = window.innerWidth - width - margin
+        const maxTop = window.innerHeight - height - margin
+        const left = Math.max(margin, Math.min(rawLeft, maxLeft))
+        const top = Math.max(margin, Math.min(rawTop, maxTop))
+
+        mojangStatusTooltip.style.left = `${left}px`
+        mojangStatusTooltip.style.top = `${top}px`
+        mojangStatusTooltip.style.right = 'auto'
+    }
+
+    const positionMojangStatusTooltipFromWrapper = () => {
+        const rect = mojangStatusWrapper.getBoundingClientRect()
+        positionMojangStatusTooltip(rect.left, rect.top + rect.height / 2)
+    }
+
+    const showMojangStatusTooltip = () => {
+        if(mojangStatusTooltip){
+            mojangStatusTooltip.classList.add('is-visible')
+            mojangStatusTooltip.setAttribute('aria-hidden', 'false')
+        }
+    }
+
+    const hideMojangStatusTooltip = () => {
+        if(mojangStatusTooltip){
+            mojangStatusTooltip.classList.remove('is-visible')
+            mojangStatusTooltip.setAttribute('aria-hidden', 'true')
+        }
+    }
+
+    if(mojangStatusTooltip){
+        mojangStatusTooltip.setAttribute('aria-hidden', 'true')
+    }
+
+    if(mojangStatusRefreshTimer == null){
+        mojangStatusRefreshTimer = setInterval(() => {
+            refreshMojangStatuses(true)
+        }, MOJANG_STATUS_REFRESH_INTERVAL)
+    }
+
+    mojangStatusWrapper.addEventListener('mouseenter', (event) => {
+        positionMojangStatusTooltip(event.clientX, event.clientY)
+        showMojangStatusTooltip()
+        refreshMojangStatuses()
+    })
+
+    mojangStatusWrapper.addEventListener('mousemove', (event) => {
+        positionMojangStatusTooltip(event.clientX, event.clientY)
+    })
+
+    mojangStatusWrapper.addEventListener('mouseleave', hideMojangStatusTooltip)
+
+    mojangStatusWrapper.addEventListener('focusin', () => {
+        positionMojangStatusTooltipFromWrapper()
+        showMojangStatusTooltip()
+        refreshMojangStatuses()
+    })
+
+    mojangStatusWrapper.addEventListener('focusout', hideMojangStatusTooltip)
+
+    document.addEventListener('visibilitychange', () => {
+        if(!document.hidden){
+            refreshMojangStatuses(true)
+        }
+    })
+}
 
 // Remote server status refresh configuration.
 const SERVER_STATUS_ENDPOINT = 'https://eidolyth.fr/status.json'
@@ -455,11 +742,10 @@ document.getElementById('landingContainer')?.style.setProperty('display','block'
   const GAP_MS   = 900;    // delay before the main curtain leaves
   const LOGO_REVEAL_DELAY = 150;  // hold time before revealing the logo
   const LOGO_ZOOM_MS = 1100;
-  const LOGO_FADE_MS = 3500; // fade-out duration for overlay logo
-  const LOGO_FADE_DELAY_MS = 1500; // delay before starting the fade-out
   const LOGO_MARGIN = 36;         // padding around the logo curtain
   const START_DELAY = 120;
   const UNDERLAY_INITIAL_SCALE = 1; // CSS body[data-intro] #menuBgLogo scale
+  const CURTAIN_EASE = 'cubic-bezier(.2,.7,.2,1)';
   // Simple sleep utility
   const sleep = (ms) => new Promise(r => setTimeout(r, ms))
 
@@ -522,7 +808,6 @@ async function runIntro(){
     curtain.offsetHeight
     curtain.style.animation = ''
 
-    const MAIN_CURTAIN_BG = curtain ? window.getComputedStyle(curtain).backgroundColor || '#2b2b2b' : '#2b2b2b'
     const LOGO_CURTAIN_BG = '#24202b' // distinct dark blue-grey for the first slide
     overlay.style.display = 'block'
     // Ensure initial paint matches the first slide color to avoid flash.
@@ -531,7 +816,6 @@ async function runIntro(){
     let logoCurtain = null
     let logoCurtainMetrics = null
     let overlayLogo = null
-    let overlayLogoInitialLeft = null
     let menuLogoInitialScale = 1
 
     const getCurrentScale = (el) => {
@@ -580,7 +864,7 @@ async function runIntro(){
         background: LOGO_CURTAIN_BG,
         zIndex: '5',
         pointerEvents: 'none',
-        transition: `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
+        transition: `left ${EXIT_MS}ms ${CURTAIN_EASE}`
       })
 
       overlay.appendChild(panel)
@@ -612,14 +896,56 @@ async function runIntro(){
         pointerEvents: 'none',
         transformOrigin: 'center center',
         opacity: '1',
-        transition: 'transform ' + LOGO_ZOOM_MS + 'ms ease, opacity ' + LOGO_FADE_MS + 'ms ease'
+        transition: 'transform ' + LOGO_ZOOM_MS + 'ms ease'
       })
       // Ensure zoom applies even if a CSS rule had !important previously.
       img.style.setProperty('transform', 'scale(1)', 'important')
-      img.style.setProperty('will-change', 'transform')
+      img.style.setProperty('clip-path', 'inset(0 0 0 0)', 'important')
+      img.style.setProperty('-webkit-clip-path', 'inset(0 0 0 0)', 'important')
+      img.style.setProperty('will-change', 'transform, clip-path')
         overlay.appendChild(img)
-        overlayLogoInitialLeft = rect.left
         return img
+    }
+
+    const syncOverlayLogoMaskToCurtain = () => {
+      if(!overlayLogo || !curtain) return
+
+      // The logo must be hidden by the same moving edge as the final curtain.
+      // Reading the transformed curtain rect keeps the mask synchronized even if the window size changes.
+      overlayLogo.style.transition = 'transform ' + LOGO_ZOOM_MS + 'ms ease'
+
+      const setLogoClip = (rightInset) => {
+        const value = 'inset(0 ' + rightInset.toFixed(3) + '% 0 0)'
+        overlayLogo.style.setProperty('clip-path', value, 'important')
+        overlayLogo.style.setProperty('-webkit-clip-path', value, 'important')
+      }
+
+      const startedAt = performance.now()
+      const step = () => {
+        if(!overlayLogo || !curtain) return
+
+        const logoRect = overlayLogo.getBoundingClientRect()
+        const curtainRect = curtain.getBoundingClientRect()
+        const logoWidth = logoRect.width || 1
+        const edgeX = curtainRect.right
+        const rightInset = Math.max(0, Math.min(100, ((logoRect.right - edgeX) / logoWidth) * 100))
+
+        setLogoClip(rightInset)
+
+        const animations = typeof curtain.getAnimations === 'function' ? curtain.getAnimations() : []
+        const stillInExitWindow = performance.now() - startedAt < EXIT_MS + 80
+        const curtainMoving = animations.length
+          ? animations.some(animation => animation.playState === 'running' || animation.playState === 'pending')
+          : stillInExitWindow
+
+        if((curtainMoving || stillInExitWindow) && rightInset < 100){
+          requestAnimationFrame(step)
+        } else {
+          setLogoClip(100)
+        }
+      }
+
+      requestAnimationFrame(step)
     }
 
     if(menuLogo){
@@ -689,7 +1015,7 @@ async function runIntro(){
         }
 
         if(logoCurtain && logoCurtainMetrics){
-          logoCurtain.style.transition = `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
+          logoCurtain.style.transition = `left ${EXIT_MS}ms ${CURTAIN_EASE}`
           requestAnimationFrame(() => {
             logoCurtain.style.left = `${logoCurtainMetrics.offscreenLeft}px`
           })
@@ -707,35 +1033,11 @@ async function runIntro(){
         // Proceed with exit animation
         overlay.style.background = 'transparent'
 
-        // Determine if we should fast-exit (welcome or loginOptions shown).
-        let fastExit = false
-        try {
-          const hasAccounts = Object.keys(ConfigManager.getAuthAccounts() || {}).length > 0
-          const isFirst = typeof ConfigManager.isFirstLaunch === 'function' ? ConfigManager.isFirstLaunch() : false
-          fastExit = isFirst || !hasAccounts
-        } catch(e) {}
-
-        if(overlayLogo){
-          if(fastExit){
-            if(logoCurtain && logoCurtainMetrics && typeof overlayLogoInitialLeft === 'number'){
-              const existingTransition = overlayLogo.style.transition || ''
-              const leftTransition = `left ${EXIT_MS}ms cubic-bezier(.2,.8,.2,1)`
-              overlayLogo.style.transition = existingTransition ? `${existingTransition}, ${leftTransition}` : leftTransition
-              const targetLeft = overlayLogoInitialLeft + logoCurtainMetrics.offscreenLeft
-              requestAnimationFrame(() => {
-                overlayLogo.style.left = `${targetLeft}px`
-              })
-            } else {
-              overlayLogo.style.opacity = '0'
-            }
-          } else {
-            setTimeout(() => { overlayLogo.style.opacity = '0' }, LOGO_FADE_DELAY_MS)
-          }
-        }
         overlay.classList.remove('show')
         overlay.classList.add('hide')
+        syncOverlayLogoMaskToCurtain()
 
-        const REMOVE_DELAY = fastExit ? EXIT_MS : Math.max(EXIT_MS, LOGO_FADE_DELAY_MS + LOGO_FADE_MS)
+        const REMOVE_DELAY = EXIT_MS
         setTimeout(() => {
           overlay.style.display = 'none'
           overlay.classList.remove('hide')
@@ -801,17 +1103,17 @@ function toggleLaunchArea(loading){
 function setLaunchStarting() {
     const btn = document.getElementById('launch_button')
     const text = btn.querySelector('.launch_text')
+    const loadingText = btn.querySelector('.launch_loading_text')
     const progText = btn.querySelector('.launch_progress_text')
     const fill = btn.querySelector('.launch_fill')
 
-    // Cache "JOUER"
+    btn.classList.add('is-launching')
+    btn.classList.remove('is-progressing')
+
     text.style.opacity = '0'
-
-    // Montre la zone de statut (qui deviendra % plus tard)
-    progText.style.opacity = '1'
-    progText.textContent = 'CHARGEMENT...'
-
-    // Barre blanche reset
+    loadingText.style.opacity = '0'
+    progText.style.opacity = '0'
+    progText.textContent = '0%'
     fill.style.width = '0%'
 }
 
@@ -838,25 +1140,20 @@ function setLaunchPercentage(percent){
 
     // Tant qu'on est en lancement/téléchargement, le bouton ne doit PAS être cliquable.
     setLaunchEnabled(false)
+    btn.classList.add('is-launching')
 
     if (percent === 0){
-        // Juste après clic :
-        // - cacher "JOUER"
-        // - afficher "Chargement..."
-        // - cacher le pourcentage
+        btn.classList.remove('is-progressing')
         if(textPlay)    textPlay.style.opacity = '0'
-        if(textLoading) textLoading.style.opacity = '1'
+        if(textLoading) textLoading.style.opacity = '0'
         if(progText)    progText.style.opacity = '0'
         if(fill)        fill.style.width = '0%'
     } else {
-        // Téléchargement effectif avec progression :
-        // - cacher "JOUER"
-        // - cacher "Chargement..."
-        // - afficher "XX%"
+        btn.classList.add('is-progressing')
         if(textPlay)    textPlay.style.opacity = '0'
         if(textLoading) textLoading.style.opacity = '0'
         if(progText){
-            progText.style.opacity = '1'
+            progText.style.opacity = '0'
             progText.textContent = `${percent}%`
         }
         if(fill)        fill.style.width = `${percent}%`
@@ -884,6 +1181,9 @@ function resetLaunchButtonUI() {
     const textLoading  = btn.querySelector('.launch_loading_text')
     const textPercent  = btn.querySelector('.launch_progress_text')
     const fill         = btn.querySelector('.launch_fill')
+
+    btn.classList.remove('is-launching')
+    btn.classList.remove('is-progressing')
 
     // montrer "JOUER"
     textPlay.style.opacity    = '1'
@@ -1153,6 +1453,16 @@ if (modsBtn) {
     }
 }
 
+const newsMediaBtn = document.getElementById('newsMediaButton')
+if (newsMediaBtn) {
+    newsMediaBtn.onclick = () => {
+        const btn = document.getElementById('newsButton')
+        if (btn) {
+            btn.click()
+        }
+    }
+}
+
 // Bind website button
 const websiteBtn = document.getElementById('websiteMediaButton')
 if (websiteBtn) {
@@ -1190,12 +1500,18 @@ function updateSelectedAccount(authUser) {
 
     let username = Lang.queryJS('landing.selectedAccount.noAccountSelected')
     setTrackedPlayerName(authUser?.displayName || null)
+    avatarContainer.style.backgroundImage = ''
+    avatarContainer.style.backgroundPosition = 'center'
+    avatarContainer.style.backgroundSize = 'cover'
+
     if (authUser != null) {
         if (authUser.displayName != null) {
             username = authUser.displayName
         }
         if (authUser.uuid != null) {
             avatarContainer.style.backgroundImage = `url('https://mc-heads.net/body/${authUser.uuid}/right')`
+            avatarContainer.style.backgroundPosition = 'center -10%'
+            avatarContainer.style.backgroundSize = '70%'
         }
     }
     userText.innerHTML = username
@@ -1970,10 +2286,108 @@ const newsArticleComments           = document.getElementById('newsArticleCommen
 const newsNavigationStatus          = document.getElementById('newsNavigationStatus')
 const newsArticleContentScrollable  = document.getElementById('newsArticleContentScrollable')
 const nELoadSpan                    = document.getElementById('nELoadSpan')
+const newsButton                    = document.getElementById('newsButton')
+const newsButtonAlert               = document.getElementById('newsButtonAlert')
+const newsNavigateLeft              = document.getElementById('newsNavigateLeft')
+const newsNavigateRight             = document.getElementById('newsNavigateRight')
+const newsErrorContainer            = document.getElementById('newsErrorContainer')
+const newsErrorLoading              = document.getElementById('newsErrorLoading')
+const newsErrorFailed               = document.getElementById('newsErrorFailed')
+const newsErrorNone                 = document.getElementById('newsErrorNone')
+const newsErrorRetry                = document.getElementById('newsErrorRetry')
+const newsStatusContent             = document.getElementById('newsStatusContent')
+const newsNavigationContainer       = document.getElementById('newsNavigationContainer')
 
 // News slide caches.
 let newsActive = false
 let newsGlideCount = 0
+let newsArr = []
+let newsCurrentIndex = 0
+let newsAlertShown = false
+
+function setNewsErrorState(state){
+    if(newsErrorContainer == null){
+        return
+    }
+
+    const hasArticle = state === 'ready'
+    newsErrorContainer.style.display = hasArticle ? 'none' : 'flex'
+
+    if(newsErrorLoading) newsErrorLoading.style.display = state === 'loading' ? 'flex' : 'none'
+    if(newsErrorFailed) newsErrorFailed.style.display = state === 'failed' ? 'flex' : 'none'
+    if(newsErrorNone) newsErrorNone.style.display = state === 'empty' ? 'flex' : 'none'
+
+    if(newsArticleContentScrollable){
+        newsArticleContentScrollable.style.display = hasArticle ? 'block' : 'none'
+    }
+
+    if(newsStatusContent){
+        newsStatusContent.style.opacity = hasArticle ? '1' : '0.45'
+    }
+
+    if(newsNavigationContainer){
+        newsNavigationContainer.style.visibility = hasArticle ? 'visible' : 'hidden'
+        newsNavigationContainer.style.pointerEvents = hasArticle ? 'auto' : 'none'
+    }
+}
+
+function updateNewsNavigationState(){
+    if(newsNavigateLeft){
+        newsNavigateLeft.disabled = newsArr.length <= 1 || newsCurrentIndex <= 0
+    }
+    if(newsNavigateRight){
+        newsNavigateRight.disabled = newsArr.length <= 1 || newsCurrentIndex >= newsArr.length - 1
+    }
+}
+
+function renderNewsArticle(index){
+    if(newsArr.length === 0){
+        setNewsErrorState('empty')
+        return
+    }
+
+    newsCurrentIndex = Math.min(Math.max(index, 0), newsArr.length - 1)
+    displayArticle(newsArr[newsCurrentIndex], newsCurrentIndex + 1)
+    updateNewsNavigationState()
+    setNewsErrorState('ready')
+}
+
+function persistNewsDismissal(){
+    try {
+        const cache = typeof ConfigManager?.getNewsCache === 'function'
+            ? (ConfigManager.getNewsCache() || {})
+            : {}
+        if(cache.dismissed !== true && typeof ConfigManager?.setNewsCacheDismissed === 'function'){
+            ConfigManager.setNewsCacheDismissed(true)
+            if(typeof ConfigManager?.save === 'function'){
+                ConfigManager.save()
+            }
+        }
+    } catch(err){
+        loggerLanding.warn('Unable to persist news dismissal state.', err)
+    }
+}
+
+function setNewsOpenState(nextState){
+    if(newsActive === nextState){
+        return
+    }
+
+    newsActive = nextState
+    slide_(newsActive)
+
+    if(newsButton){
+        newsButton.setAttribute('aria-expanded', newsActive ? 'true' : 'false')
+    }
+
+    if(newsActive){
+        if(newsButtonAlert){
+            $(newsButtonAlert).fadeOut(150)
+        }
+        newsAlertShown = false
+        persistNewsDismissal()
+    }
+}
 
 /**
  * Show the news UI via a slide animation.
@@ -2028,6 +2442,9 @@ function slide_(up){
  * Show the news alert indicating there is new news.
  */
 function showNewsAlert(){
+    if(newsButtonAlert == null || newsAlertShown){
+        return
+    }
     newsAlertShown = true
     $(newsButtonAlert).fadeIn(250)
 }
@@ -2050,7 +2467,10 @@ async function digestMessage(str) {
 document.addEventListener('keydown', (e) => {
     if(newsActive){
         if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
-            document.getElementById(e.key === 'ArrowRight' ? 'newsNavigateRight' : 'newsNavigateLeft').click()
+            const navBtn = document.getElementById(e.key === 'ArrowRight' ? 'newsNavigateRight' : 'newsNavigateLeft')
+            if(navBtn){
+                navBtn.click()
+            }
         }
         // Interferes with scrolling an article using the down arrow.
         // Not sure of a straight forward solution at this point.
@@ -2060,7 +2480,10 @@ document.addEventListener('keydown', (e) => {
     } else {
         if(getCurrentView() === VIEWS.landing){
             if(e.key === 'ArrowUp'){
-                document.getElementById('newsButton').click()
+                const btn = document.getElementById('newsButton')
+                if(btn){
+                    btn.click()
+                }
             }
         }
     }
@@ -2088,6 +2511,69 @@ function displayArticle(articleObject, index){
     })
     newsNavigationStatus.innerHTML = Lang.query('ejs.landing.newsNavigationStatus', {currentPage: index, totalPages: newsArr.length})
     newsContent.setAttribute('article', index-1)
+}
+
+async function syncNewsAlertState(latestArticle){
+    if(latestArticle == null){
+        return
+    }
+
+    try {
+        const latestDigest = await digestMessage(`${latestArticle.title}|${latestArticle.date}|${latestArticle.link}`)
+        const cache = typeof ConfigManager?.getNewsCache === 'function'
+            ? (ConfigManager.getNewsCache() || {})
+            : {}
+
+        const hasNewArticle = cache.content !== latestDigest
+
+        if(hasNewArticle && typeof ConfigManager?.setNewsCache === 'function'){
+            ConfigManager.setNewsCache({
+                date: latestArticle.date,
+                content: latestDigest,
+                dismissed: false
+            })
+            if(typeof ConfigManager?.save === 'function'){
+                ConfigManager.save()
+            }
+        }
+
+        if(hasNewArticle || cache.dismissed === false){
+            showNewsAlert()
+        }
+    } catch(err){
+        loggerLanding.warn('Unable to sync news cache state.', err)
+    }
+}
+
+async function initializeNews(){
+    if(newsContent == null){
+        return
+    }
+
+    if(nELoadSpan){
+        nELoadSpan.textContent = Lang.queryJS('landing.news.checking')
+    }
+
+    setNewsErrorState('loading')
+
+    try {
+        const news = await loadNews()
+        if(Array.isArray(news?.articles) && news.articles.length > 0){
+            newsArr = news.articles
+            renderNewsArticle(0)
+            await syncNewsAlertState(newsArr[0])
+            return
+        }
+
+        newsArr = []
+        updateNewsNavigationState()
+        setNewsErrorState(news == null || Array.isArray(news?.articles) ? 'empty' : 'failed')
+    } catch(err){
+        loggerLanding.warn('Unable to initialize news panel.', err)
+        newsArr = []
+        updateNewsNavigationState()
+        setNewsErrorState('failed')
+    }
 }
 
 /**
@@ -2162,6 +2648,32 @@ async function loadNews(){
 
     return await promise
 }
+
+if(newsButton){
+    newsButton.onclick = () => {
+        setNewsOpenState(!newsActive)
+    }
+}
+
+if(newsNavigateLeft){
+    newsNavigateLeft.onclick = () => {
+        renderNewsArticle(newsCurrentIndex - 1)
+    }
+}
+
+if(newsNavigateRight){
+    newsNavigateRight.onclick = () => {
+        renderNewsArticle(newsCurrentIndex + 1)
+    }
+}
+
+if(newsErrorRetry){
+    newsErrorRetry.onclick = () => {
+        initializeNews()
+    }
+}
+
+initializeNews()
 
 try {
   const { app } = require('electron').remote || require('@electron/remote')

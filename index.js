@@ -16,8 +16,18 @@ const LangLoader                        = require('./app/assets/js/langloader')
 // Setup Lang
 LangLoader.setupLanguage()
 
+let autoUpdaterEventSender = null
+let autoUpdaterListenersAttached = false
+
+function sendAutoUpdateNotification(status, info = null) {
+    if(autoUpdaterEventSender != null && !autoUpdaterEventSender.isDestroyed()){
+        autoUpdaterEventSender.send('autoUpdateNotification', status, info)
+    }
+}
+
 // Setup auto updater.
 function initAutoUpdater(event, data) {
+    autoUpdaterEventSender = event.sender
 
     if(data){
         autoUpdater.allowPrerelease = true
@@ -33,21 +43,27 @@ function initAutoUpdater(event, data) {
     if(process.platform === 'darwin'){
         autoUpdater.autoDownload = false
     }
+    if(autoUpdaterListenersAttached){
+        return
+    }
+
     autoUpdater.on('update-available', (info) => {
-        event.sender.send('autoUpdateNotification', 'update-available', info)
+        sendAutoUpdateNotification('update-available', info)
     })
     autoUpdater.on('update-downloaded', (info) => {
-        event.sender.send('autoUpdateNotification', 'update-downloaded', info)
+        sendAutoUpdateNotification('update-downloaded', info)
     })
     autoUpdater.on('update-not-available', (info) => {
-        event.sender.send('autoUpdateNotification', 'update-not-available', info)
+        sendAutoUpdateNotification('update-not-available', info)
     })
     autoUpdater.on('checking-for-update', () => {
-        event.sender.send('autoUpdateNotification', 'checking-for-update')
+        sendAutoUpdateNotification('checking-for-update')
     })
     autoUpdater.on('error', (err) => {
-        event.sender.send('autoUpdateNotification', 'realerror', err)
-    }) 
+        sendAutoUpdateNotification('realerror', err)
+    })
+
+    autoUpdaterListenersAttached = true
 }
 
 // Open channel to listen for update actions.
@@ -253,8 +269,10 @@ let win
 function createWindow() {
 
     win = new BrowserWindow({
-        width: 1000,
-        height: 720,
+        width: 1280,
+        height: 820,
+        minWidth: 1180,
+        minHeight: 780,
         icon: getPlatformIcon('icon'),
         frame: false,
         backgroundColor: '#24202b',  // match first slide color to prevent flash
@@ -280,7 +298,11 @@ function createWindow() {
     win.loadURL(pathToFileURL(path.join(__dirname, 'app', 'app.ejs')).toString())
 
     win.once('ready-to-show', () => {
-        try { win.show() } catch(e) {}
+        try {
+            win.show()
+        } catch(e) {
+            // Ignore races where the window closes before it is shown.
+        }
     })
 
     win.removeMenu()
