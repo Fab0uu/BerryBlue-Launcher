@@ -498,7 +498,7 @@ if(mojangStatusWrapper){
 }
 
 // Remote server status refresh configuration.
-const SERVER_STATUS_ENDPOINT = 'https://eidolyth.fr/status.json'
+const SERVER_STATUS_ENDPOINT = 'https://api.eidolyth.fr/status/minecraft/status.json'
 const SERVER_STATUS_REFRESH_INTERVAL = 5000
 
 // Cards configuration allows flexible mapping between launcher UI and API names.

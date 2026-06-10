@@ -112,7 +112,7 @@ Les artefacts generes se trouvent dans `dist/`.
 ## Configuration principale
 
 - Distribution distante : `https://api.eidolyth.fr/NeoNebula/root/distribution.json`
-- Statut serveur : `https://eidolyth.fr/status.json`
+- Statut serveur : `https://api.eidolyth.fr/status/minecraft/status.json`
 
 ## Credits
 
