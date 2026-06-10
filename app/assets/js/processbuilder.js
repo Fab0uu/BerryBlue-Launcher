@@ -88,7 +88,10 @@ class ProcessBuilder {
 
         logger.info('Launch Arguments:', args)
 
-        const child = child_process.spawn(ConfigManager.getJavaExecutable(this.server.rawServer.id), args, {
+        const javaExecutable = ConfigManager.getJavaExecutable(this.server.rawServer.id)
+        this.ensureJavaExecutableReady(javaExecutable)
+
+        const child = child_process.spawn(javaExecutable, args, {
             cwd: this.gameDir,
             detached: ConfigManager.getLaunchDetached()
         })
@@ -119,6 +122,23 @@ class ProcessBuilder {
         })
 
         return child
+    }
+
+    ensureJavaExecutableReady(javaExecutable){
+        if(typeof javaExecutable !== 'string' || javaExecutable.length === 0){
+            throw new Error('Java executable is not configured.')
+        }
+        if(!fs.existsSync(javaExecutable)){
+            throw new Error(`Java executable does not exist: ${javaExecutable}`)
+        }
+        if(process.platform !== 'win32'){
+            try {
+                fs.accessSync(javaExecutable, fs.constants.X_OK)
+            } catch (_err) {
+                const stat = fs.statSync(javaExecutable)
+                fs.chmodSync(javaExecutable, stat.mode | 0o755)
+            }
+        }
     }
 
     /**
@@ -838,11 +858,9 @@ class ProcessBuilder {
 
                         // Extract the file.
                         if(!shouldExclude){
-                            fs.writeFile(path.join(tempNativePath, fileName), zipEntries[i].getData(), (err) => {
-                                if(err){
-                                    logger.error('Error while extracting native library:', err)
-                                }
-                            })
+                            const extractPath = path.join(tempNativePath, fileName)
+                            fs.ensureDirSync(path.dirname(extractPath))
+                            fs.writeFileSync(extractPath, zipEntries[i].getData())
                         }
 
                     }
@@ -851,10 +869,13 @@ class ProcessBuilder {
                 else if(lib.name.includes('natives-')) {
 
                     const regexTest = nativesRegex.exec(lib.name)
-                    // const os = regexTest[1]
+                    if(regexTest == null){
+                        continue
+                    }
+                    const nativeOs = regexTest[1]
                     const arch = regexTest[2] ?? 'x64'
 
-                    if(arch != process.arch) {
+                    if(nativeOs !== getMojangOS() || arch !== process.arch) {
                         continue
                     }
 
@@ -885,15 +906,13 @@ class ProcessBuilder {
                             }
                         })
 
-                        const extractName = fileName.includes('/') ? fileName.substring(fileName.lastIndexOf('/')) : fileName
+                        const extractName = fileName.includes('/') ? fileName.substring(fileName.lastIndexOf('/') + 1) : fileName
 
                         // Extract the file.
                         if(!shouldExclude){
-                            fs.writeFile(path.join(tempNativePath, extractName), zipEntries[i].getData(), (err) => {
-                                if(err){
-                                    logger.error('Error while extracting native library:', err)
-                                }
-                            })
+                            const extractPath = path.join(tempNativePath, extractName)
+                            fs.ensureDirSync(path.dirname(extractPath))
+                            fs.writeFileSync(extractPath, zipEntries[i].getData())
                         }
 
                     }
@@ -941,7 +960,7 @@ class ProcessBuilder {
 
         //Check for any libraries in our mod list.
         for(let i=0; i<mods.length; i++){
-            if(mods.sub_modules != null){
+            if(mods[i].subModules.length > 0){
                 const res = this._resolveModuleLibraries(mods[i])
                 if(Object.keys(res).length > 0){
                     libs = {...libs, ...res}
@@ -959,7 +978,7 @@ class ProcessBuilder {
      * @returns {{[id: string]: string}} An object containing the paths of each library this module requires.
      */
     _resolveModuleLibraries(mdl){
-        if(!mdl.subModules.length > 0){
+        if(mdl.subModules.length === 0){
             return {}
         }
         let libs = {}
@@ -972,7 +991,7 @@ class ProcessBuilder {
             }
             // If this module has submodules, we need to resolve the libraries for those.
             // To avoid unnecessary recursive calls, base case is checked here.
-            if(mdl.subModules.length > 0){
+            if(sm.subModules.length > 0){
                 const res = this._resolveModuleLibraries(sm)
                 if(Object.keys(res).length > 0){
                     libs = {...libs, ...res}

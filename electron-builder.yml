@@ -1,6 +1,6 @@
 appId: 'Eidolyth'
 productName: 'Eidolyth Launcher'
-artifactName: 'Eidolyth-Launcher-setup.${ext}'
+artifactName: 'Eidolyth-Launcher-${version}-${os}-${arch}.${ext}'
 
 copyright: 'Copyright © 2024 Fabrice Lozach'
 
@@ -18,6 +18,7 @@ win:
   target: 
     - target: 'nsis'
       arch: 'x64'
+  artifactName: 'Eidolyth-Launcher-setup.${ext}'
 
 # Windows Installer Configuration
 nsis:
@@ -36,13 +37,25 @@ mac:
   category: 'public.app-category.games'
 
 # Linux Configuration
-linux: 
-  target: 'AppImage'
+linux:
+  target:
+    - target: 'AppImage'
+      arch:
+        - 'x64'
+    - target: 'deb'
+      arch:
+        - 'x64'
+    - target: 'rpm'
+      arch:
+        - 'x64'
   maintainer: 'Fabrice Lozach'
   vendor: 'Fabrice Lozach'
   synopsis: 'Modded Minecraft Launcher'
   description: 'Custom launcher which allows users to join modded servers. All mods, configurations, and updates are handled automatically.'
   category: 'Game'
+  executableName: 'eidolyth-launcher'
+  desktop:
+    Name: 'Eidolyth Launcher'
 
 
 directories:

@@ -21,7 +21,7 @@ Eidolyth Launcher simplifie l'acces au serveur et a son modpack en gerant automa
 - Gestion du modpack et des bibliotheques via la distribution
 - Parametres Java et allocation memoire configurables
 - Journalisation integree pour le diagnostic
-- Build Windows via `electron-builder`
+- Builds Windows, macOS et Linux via `electron-builder`
 
 ## Particularites du chargement des mods
 
@@ -52,11 +52,29 @@ npm install
 npm start
 ```
 
+Le script de demarrage nettoie les variables Electron heritees de certains environnements sandbox et contourne le `chrome-sandbox` local non setuid sur Linux. Il faut tout de meme lancer cette commande depuis une session graphique avec `DISPLAY` ou Wayland disponible.
+
 ### Lint
 
 ```bash
 npm run lint
 ```
+
+### Tests Linux cibles
+
+```bash
+npm run test:linux
+```
+
+Ces tests verrouillent les comportements Linux critiques du lancement Minecraft : executable Java, separateur classpath, filtrage/extraction des natives et resolution des bibliotheques de sous-modules.
+
+### Verification des artefacts Linux
+
+```bash
+npm run verify:linux-artifacts
+```
+
+Cette verification inspecte le contenu des artefacts Linux generes. En environnement local sans RPM fonctionnel, utiliser `npm run verify:linux-artifacts -- --allow-missing-rpm` apres avoir genere au moins l'AppImage et le `.deb`.
 
 ## Build
 
@@ -66,7 +84,30 @@ npm run lint
 npm run dist:win
 ```
 
-Le setup genere se trouve dans `dist/`.
+### Build macOS
+
+```bash
+npm run dist:mac
+```
+
+### Build Linux
+
+```bash
+npm run dist:linux
+```
+
+Le build Linux produit un `AppImage`, un paquet `.deb` et un paquet `.rpm` x64 dans `dist/`.
+
+#### Notes Linux
+
+- Le launcher cible les distributions desktop x64 courantes : Ubuntu/Debian, Fedora, Arch/Manjaro et derivees.
+- Le script `dist:linux` force un nom produit interne sans espace pour obtenir des chemins de paquet stables sous `/opt/Eidolyth`, tout en gardant le nom affiche `Eidolyth Launcher`.
+- Le JDK compatible est detecte via `JAVA_HOME`, `JRE_HOME`, `JDK_HOME`, `/usr/lib/jvm` ou le runtime telecharge par le launcher.
+- Si aucun JDK compatible n'est trouve, le launcher telecharge et extrait automatiquement un JDK dans le dossier de donnees Eidolyth.
+- L'AppImage peut necessiter FUSE selon la distribution. Si FUSE n'est pas disponible, utiliser le paquet `.deb` ou `.rpm` adapte.
+- Les integrations optionnelles comme Discord Rich Presence restent non bloquantes si le client Discord ou son IPC n'est pas disponible.
+
+Les artefacts generes se trouvent dans `dist/`.
 
 ## Configuration principale
 

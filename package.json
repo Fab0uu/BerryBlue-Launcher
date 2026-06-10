@@ -1,6 +1,6 @@
 {
   "name": "eidolyth",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "productName": "Eidolyth",
   "description": "Eidolyth Minecraft Launcher",
   "author": "Daniel Scalzi (https://github.com/dscalzi/), Fabrice Lozac'h (https://github.com/Fab0uu)",
@@ -12,12 +12,14 @@
   "private": true,
   "main": "index.js",
   "scripts": {
-    "start": "electron .",
+    "start": "node scripts/run-electron.js",
     "dist": "electron-builder build",
     "dist:win": "npm run dist -- -w",
     "dist:mac": "npm run dist -- -m",
-    "dist:linux": "npm run dist -- -l",
-    "lint": "eslint --config .eslintrc.json ."
+    "dist:linux": "npm run dist -- -l -c.productName=Eidolyth",
+    "lint": "eslint --config .eslintrc.json .",
+    "test:linux": "node --test tests/linux/*.test.js",
+    "verify:linux-artifacts": "node scripts/verify-linux-artifacts.js"
   },
   "engines": {
     "node": "20.x.x"
