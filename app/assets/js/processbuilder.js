@@ -23,7 +23,7 @@ const logger = LoggerUtil.getLogger('ProcessBuilder')
  */
 class ProcessBuilder {
 
-    constructor(distroServer, vanillaManifest, modManifest, authUser, launcherVersion){
+    constructor(distroServer, vanillaManifest, modManifest, authUser, launcherVersion, launchOptions = {}){
         this.gameDir = path.join(ConfigManager.getInstanceDirectory(), distroServer.rawServer.id)
         this.commonDir = ConfigManager.getCommonDirectory()
         this.server = distroServer
@@ -31,6 +31,9 @@ class ProcessBuilder {
         this.modManifest = modManifest
         this.authUser = authUser
         this.launcherVersion = launcherVersion
+        this.gatekeeperSessionFile = typeof launchOptions.gatekeeperSessionFile === 'string'
+            ? launchOptions.gatekeeperSessionFile
+            : null
         this.forgeModListFile = path.join(this.gameDir, 'forgeMods.list') // 1.13+
         this.fmlDir = path.join(this.gameDir, 'forgeModList.json')
         this.llDir = path.join(this.gameDir, 'liteloaderModList.json')
@@ -86,7 +89,7 @@ class ProcessBuilder {
             args = args.concat(this.constructModList(modObj.fMods))
         }
 
-        logger.info('Launch Arguments:', args)
+        logger.info('Launch Arguments:', ProcessBuilder.redactLaunchArguments(args))
 
         const javaExecutable = ConfigManager.getJavaExecutable(this.server.rawServer.id)
         this.ensureJavaExecutableReady(javaExecutable)
@@ -149,6 +152,29 @@ class ProcessBuilder {
      */
     static getClasspathSeparator() {
         return process.platform === 'win32' ? ';' : ':'
+    }
+
+    static redactLaunchArguments(args) {
+        const redacted = Array.from(args)
+        for(let i = 0; i < redacted.length; i++){
+            if(redacted[i] === '--accessToken' && i + 1 < redacted.length){
+                redacted[i + 1] = '<redacted>'
+            } else if(typeof redacted[i] === 'string' && redacted[i].startsWith('-Deidolyth.gatekeeper.session=')){
+                redacted[i] = '-Deidolyth.gatekeeper.session=<redacted>'
+            }
+        }
+        return redacted
+    }
+
+    appendGatekeeperJvmArgument(args) {
+        if(this.gatekeeperSessionFile == null || this.gatekeeperSessionFile.trim().length === 0){
+            return args
+        }
+        if(!path.isAbsolute(this.gatekeeperSessionFile) || this.gatekeeperSessionFile.includes('\0')){
+            throw new Error('Gatekeeper session file path must be absolute.')
+        }
+        args.push('-Deidolyth.gatekeeper.sessionFile=' + this.gatekeeperSessionFile)
+        return args
     }
 
     /**
@@ -463,6 +489,7 @@ class ProcessBuilder {
         args.push('-Xms' + ConfigManager.getMinRAM(this.server.rawServer.id))
         args = args.concat(ConfigManager.getJVMOptions(this.server.rawServer.id))
         args.push('-Djava.library.path=' + tempNativePath)
+        this.appendGatekeeperJvmArgument(args)
 
         // Main Java Class
         args.push(this.modManifest.mainClass)
@@ -488,7 +515,7 @@ class ProcessBuilder {
         const argDiscovery = /\${*(.*)}/
 
         // JVM Arguments First
-        let args = this.vanillaManifest.arguments.jvm
+        let args = Array.from(this.vanillaManifest.arguments.jvm)
 
         // Debug securejarhandler
         // args.push('-Dbsl.debug=true')
@@ -513,6 +540,7 @@ class ProcessBuilder {
         args.push('-Xmx' + ConfigManager.getMaxRAM(this.server.rawServer.id))
         args.push('-Xms' + ConfigManager.getMinRAM(this.server.rawServer.id))
         args = args.concat(ConfigManager.getJVMOptions(this.server.rawServer.id))
+        this.appendGatekeeperJvmArgument(args)
 
         // Main Java Class
         args.push(this.modManifest.mainClass)

@@ -23,6 +23,12 @@ Eidolyth Launcher simplifie l'acces au serveur et a son modpack en gerant automa
 - Journalisation integree pour le diagnostic
 - Builds Windows, macOS et Linux via `electron-builder`
 
+## Gatekeeper
+
+Avant chaque lancement, le launcher authentifie le compte auprès de `https://api.eidolyth.fr/gatekeeper/v1`, obtient une session Gatekeeper et la transmet au mod client par un fichier temporaire privé. Le fichier est supprimé dès sa lecture et aucun jeton n'est écrit dans les journaux de lancement.
+
+Le heartbeat envoyé pendant l'exécution sert uniquement au suivi d'activité : une interruption réseau ne fait pas expirer Minecraft et ne force jamais le joueur à redémarrer son jeu. La session est révoquée lorsque le processus Minecraft se ferme normalement. L'endpoint de production est fixé à `api.eidolyth.fr` ; les tests peuvent injecter une adresse locale sans modifier le comportement distribué.
+
 ## Particularites du chargement des mods
 
 Pour les versions NeoForge/Forge recentes, le launcher :

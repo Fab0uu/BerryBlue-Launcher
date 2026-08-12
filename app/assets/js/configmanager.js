@@ -1,3 +1,4 @@
+const crypto = require('crypto')
 const fs   = require('fs-extra')
 const { LoggerUtil } = require('helios-core')
 const os   = require('os')
@@ -94,6 +95,9 @@ const DEFAULT_CONFIG = {
         dismissed: false
     },
     clientToken: null,
+    gatekeeper: {
+        installationId: null
+    },
     selectedServer: null, // Resolved
     selectedAccount: null,
     authenticationDatabase: {},
@@ -271,6 +275,27 @@ exports.getClientToken = function(){
  */
 exports.setClientToken = function(clientToken){
     config.clientToken = clientToken
+}
+
+/**
+ * Return a stable, non-secret identifier for this launcher installation.
+ * It lets the Gatekeeper API distinguish installations without using a
+ * hardware fingerprint.
+ *
+ * @returns {string} The installation identifier.
+ */
+exports.getGatekeeperInstallationId = function(){
+    const current = config.gatekeeper?.installationId
+    if(typeof current === 'string' && /^[a-f0-9-]{36}$/i.test(current)){
+        return current
+    }
+
+    if(config.gatekeeper == null || typeof config.gatekeeper !== 'object'){
+        config.gatekeeper = {}
+    }
+    config.gatekeeper.installationId = crypto.randomUUID()
+    exports.save()
+    return config.gatekeeper.installationId
 }
 
 /**

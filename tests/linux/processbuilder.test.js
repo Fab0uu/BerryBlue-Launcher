@@ -36,6 +36,31 @@ test('classpath separator is platform specific', () => {
     assert.equal(ProcessBuilder.getClasspathSeparator(), process.platform === 'win32' ? ';' : ':')
 })
 
+test('adds the Gatekeeper session file as a JVM property', () => {
+    const sessionFile = path.resolve(os.tmpdir(), 'eidolyth-session-test')
+    const builder = createBuilder({ gatekeeperSessionFile: sessionFile })
+    const args = []
+
+    builder.appendGatekeeperJvmArgument(args)
+
+    assert.deepEqual(args, [`-Deidolyth.gatekeeper.sessionFile=${sessionFile}`])
+})
+
+test('redacts account and Gatekeeper tokens from launch logs', () => {
+    assert.deepEqual(
+        ProcessBuilder.redactLaunchArguments([
+            '--accessToken',
+            'minecraft-secret',
+            '-Deidolyth.gatekeeper.session=gatekeeper-secret'
+        ]),
+        [
+            '--accessToken',
+            '<redacted>',
+            '-Deidolyth.gatekeeper.session=<redacted>'
+        ]
+    )
+})
+
 test('ensureJavaExecutableReady validates and fixes executable bit on Unix', t => {
     const tmpDir = createTempDir()
     t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }))

@@ -53,6 +53,7 @@ const MIN_LINGER = 5000
 const DiscordWrapper          = require('./assets/js/discordwrapper')
 const DiscordRPCConfig        = require('./assets/js/discordconfig')
 const ProcessBuilder          = require('./assets/js/processbuilder')
+const GatekeeperClient        = require('./assets/js/gatekeeper')
 const DropinCleanerUtil       = require('./assets/js/dropinmodutil')
 const fsExtra                 = require('fs-extra')
 const nodePath                = require('path')
@@ -2143,9 +2144,51 @@ async function dlAsync(login = true) {
     if(login) {
         const authUser = ConfigManager.getSelectedAccount()
         setTrackedPlayerName(authUser?.displayName || null)
+        setLaunchDetails(Lang.queryJS('landing.dlAsync.requestingGatekeeperSession'))
+
+        let gatekeeperSession
+        let gatekeeperSessionFile
+        try {
+            gatekeeperSession = await GatekeeperClient.issueSession({
+                authUser,
+                launcherVersion: remote.app.getVersion(),
+                installationId: ConfigManager.getGatekeeperInstallationId()
+            })
+            gatekeeperSessionFile = GatekeeperClient.writeSessionFile(gatekeeperSession.sessionToken)
+        } catch(err) {
+            if(gatekeeperSession?.sessionToken){
+                GatekeeperClient.revokeSession(gatekeeperSession.sessionToken).catch(() => undefined)
+            }
+            const errorCode = typeof err?.code === 'string' ? err.code : 'service_unavailable'
+            loggerLaunchSuite.error(`Unable to prepare Gatekeeper session (${errorCode}).`)
+            const identityRejected = [
+                'invalid_minecraft_access_token',
+                'invalid_minecraft_profile',
+                'minecraft_identity_mismatch',
+                'minecraft_authentication_required'
+            ].includes(errorCode)
+            showLaunchFailure(
+                Lang.queryJS('landing.dlAsync.gatekeeperFailureTitle'),
+                Lang.queryJS(identityRejected
+                    ? 'landing.dlAsync.gatekeeperIdentityRejected'
+                    : 'landing.dlAsync.gatekeeperUnavailable')
+            )
+            resetLaunchButtonUI()
+            return
+        }
+
         loggerLaunchSuite.info(`Sending selected account (${authUser.displayName}) to ProcessBuilder.`)
-        let pb = new ProcessBuilder(serv, versionData, modLoaderData, authUser, remote.app.getVersion())
+        let pb = new ProcessBuilder(
+            serv,
+            versionData,
+            modLoaderData,
+            authUser,
+            remote.app.getVersion(),
+            { gatekeeperSessionFile: gatekeeperSessionFile.path }
+        )
         setLaunchDetails(Lang.queryJS('landing.dlAsync.launchingGame'))
+
+        let gatekeeperHeartbeatTimer = null
 
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
@@ -2215,6 +2258,16 @@ async function dlAsync(login = true) {
             // on marque que le jeu tourne
             gameIsRunning = true
 
+            gatekeeperHeartbeatTimer = setInterval(() => {
+                GatekeeperClient.heartbeatSession(gatekeeperSession.sessionToken).catch(err => {
+                    const errorCode = typeof err?.code === 'string' ? err.code : 'unknown_error'
+                    loggerLaunchSuite.warn(`Gatekeeper heartbeat failed (${errorCode}).`)
+                })
+            }, 300000)
+            if(typeof gatekeeperHeartbeatTimer.unref === 'function'){
+                gatekeeperHeartbeatTimer.unref()
+            }
+
             // Bind listeners to stdout/err.
             proc.stdout.on('data', tempListener)
             proc.stderr.on('data', gameErrorListener)
@@ -2233,6 +2286,16 @@ async function dlAsync(login = true) {
             // quand le jeu se ferme :
             proc.on('close', (code, signal) => {
                 loggerLaunchSuite.info('Minecraft process closed with code', code, 'signal', signal)
+
+                if(gatekeeperHeartbeatTimer != null){
+                    clearInterval(gatekeeperHeartbeatTimer)
+                    gatekeeperHeartbeatTimer = null
+                }
+                gatekeeperSessionFile.cleanup()
+                GatekeeperClient.revokeSession(gatekeeperSession.sessionToken).catch(err => {
+                    const errorCode = typeof err?.code === 'string' ? err.code : 'unknown_error'
+                    loggerLaunchSuite.warn(`Gatekeeper session revocation failed (${errorCode}).`)
+                })
 
                 // jeu plus en cours
                 gameIsRunning = false
@@ -2258,6 +2321,15 @@ async function dlAsync(login = true) {
             })
 
         } catch(err) {
+
+            if(gatekeeperHeartbeatTimer != null){
+                clearInterval(gatekeeperHeartbeatTimer)
+            }
+            gatekeeperSessionFile.cleanup()
+            GatekeeperClient.revokeSession(gatekeeperSession.sessionToken).catch(revokeError => {
+                const errorCode = typeof revokeError?.code === 'string' ? revokeError.code : 'unknown_error'
+                loggerLaunchSuite.warn(`Gatekeeper session revocation failed (${errorCode}).`)
+            })
 
             loggerLaunchSuite.error('Error during launch', err)
             showLaunchFailure(
