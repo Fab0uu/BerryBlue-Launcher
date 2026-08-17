@@ -6,6 +6,7 @@ copyright: 'Copyright © 2024 Fabrice Lozach'
 
 asar: true
 compression: 'maximum'
+afterSign: 'scripts/after-sign.js'
 
 files:
   - '!{dist,.gitignore,.vscode,docs,dev-app-update.yml,.nvmrc,.eslintrc.json}'
@@ -33,11 +34,13 @@ mac:
     - target: 'dmg'
       arch:
         - 'x64'
-  artifactName: 'Eidolyth-Launcher-setup.${ext}'
+        - 'arm64'
+  artifactName: 'Eidolyth-Launcher-setup-${arch}.${ext}'
   category: 'public.app-category.games'
 
 # Linux Configuration
 linux:
+  artifactName: 'Eidolyth-Launcher-setup.${ext}'
   target:
     - target: 'AppImage'
       arch:

@@ -23,6 +23,29 @@ const logger = LoggerUtil.getLogger('ProcessBuilder')
  */
 class ProcessBuilder {
 
+    static normalizeNativeOS(nativeOS){
+        return nativeOS === 'macos' ? 'osx' : nativeOS
+    }
+
+    static normalizeNativeArchitecture(architecture){
+        switch(architecture){
+            case 'aarch64':
+                return 'arm64'
+            case 'amd64':
+            case 'x86_64':
+                return 'x64'
+            case 'x86':
+                return 'ia32'
+            default:
+                return architecture
+        }
+    }
+
+    static isNativeLibraryCompatible(nativeOS, architecture, mojangOS = getMojangOS(), runtimeArchitecture = process.arch){
+        return ProcessBuilder.normalizeNativeOS(nativeOS) === ProcessBuilder.normalizeNativeOS(mojangOS)
+            && ProcessBuilder.normalizeNativeArchitecture(architecture) === ProcessBuilder.normalizeNativeArchitecture(runtimeArchitecture)
+    }
+
     constructor(distroServer, vanillaManifest, modManifest, authUser, launcherVersion, launchOptions = {}){
         this.gameDir = path.join(ConfigManager.getInstanceDirectory(), distroServer.rawServer.id)
         this.commonDir = ConfigManager.getCommonDirectory()
@@ -436,17 +459,9 @@ class ProcessBuilder {
     }
 
     _processAutoConnectArg(args){
-        if(ConfigManager.getAutoConnect() && this.server.rawServer.autoconnect){
-            if(mcVersionAtLeast('1.20', this.server.rawServer.minecraftVersion)){
-                args.push('--quickPlayMultiplayer')
-                args.push(`${this.server.hostname}:${this.server.port}`)
-            } else {
-                args.push('--server')
-                args.push(this.server.hostname)
-                args.push('--port')
-                args.push(this.server.port)
-            }
-        }
+        // Automatic server joins are intentionally disabled. Players choose
+        // when to connect from the Eidolyth menu after Minecraft has loaded.
+        return args
     }
 
     /**
@@ -903,7 +918,7 @@ class ProcessBuilder {
                     const nativeOs = regexTest[1]
                     const arch = regexTest[2] ?? 'x64'
 
-                    if(nativeOs !== getMojangOS() || arch !== process.arch) {
+                    if(!ProcessBuilder.isNativeLibraryCompatible(nativeOs, arch)) {
                         continue
                     }
 

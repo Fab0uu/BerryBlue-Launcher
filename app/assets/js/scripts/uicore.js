@@ -37,15 +37,20 @@ function resolveDarwinDownloadUrl(info){
         return null
     }
 
-    const releaseBase = `https://github.com/Fab0uu/Eidolyth-Launcher/releases/download/v${info.version}/`
+    const releaseTag = typeof info.tag === 'string' && info.tag.length > 0
+        ? info.tag
+        : `v${info.version}`
+    const releaseBase = `https://github.com/Fab0uu/Eidolyth-Launcher/releases/download/${releaseTag}/`
+    const preferredArch = process.arch === 'arm64' ? 'arm64' : 'x64'
     if(Array.isArray(info.files)){
-        const dmgFile = info.files.find(file => typeof file?.url === 'string' && file.url.toLowerCase().endsWith('.dmg'))
+        const dmgFiles = info.files.filter(file => typeof file?.url === 'string' && file.url.toLowerCase().endsWith('.dmg'))
+        const dmgFile = dmgFiles.find(file => file.url.toLowerCase().includes(`-${preferredArch}.dmg`)) || dmgFiles[0]
         if(dmgFile != null){
             return dmgFile.url.startsWith('http') ? dmgFile.url : `${releaseBase}${dmgFile.url.replace(/^\/+/, '')}`
         }
     }
 
-    return `${releaseBase}Eidolyth-Launcher-setup.dmg`
+    return `${releaseBase}Eidolyth-Launcher-setup-${preferredArch}.dmg`
 }
 
 async function openLauncherUpdateView(sourceElement){

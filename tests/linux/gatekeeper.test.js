@@ -29,7 +29,7 @@ test('issues a session with the Minecraft access token and identity', async () =
             uuid: '069a79f444e94726a5befca90e38aaf5',
             displayName: 'Notch'
         },
-        launcherVersion: '2.0.4',
+        launcherVersion: '2.0.5',
         installationId: '8d9f9bf9-69a7-4e3c-a39d-e89900121ed5',
         httpClient
     })
@@ -37,7 +37,7 @@ test('issues a session with the Minecraft access token and identity', async () =
     assert.equal(receivedEndpoint, 'https://api.eidolyth.fr/gatekeeper/v1/sessions/issue')
     assert.equal(receivedOptions.headers.authorization, 'Bearer minecraft-access-token')
     assert.equal(receivedOptions.json.minecraftUsername, 'Notch')
-    assert.equal(receivedOptions.json.launcherVersion, '2.0.4')
+    assert.equal(receivedOptions.json.launcherVersion, '2.0.5')
     assert.equal(session.minecraftUsername, 'Notch')
 })
 

@@ -11,7 +11,6 @@ Eidolyth Launcher simplifie l'acces au serveur et a son modpack en gerant automa
 - la recuperation de la distribution du launcher
 - la verification et le telechargement des fichiers du jeu
 - le lancement de Minecraft avec la configuration Eidolyth
-- l'autoconnect au serveur
 - la gestion des comptes Microsoft
 
 ## Fonctionnalites

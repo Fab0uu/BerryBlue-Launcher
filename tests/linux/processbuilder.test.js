@@ -46,6 +46,24 @@ test('adds the Gatekeeper session file as a JVM property', () => {
     assert.deepEqual(args, [`-Deidolyth.gatekeeper.sessionFile=${sessionFile}`])
 })
 
+test('does not add automatic server connection arguments', () => {
+    const builder = createBuilder({
+        server: {
+            hostname: 'eidolyth.fr',
+            port: 25565,
+            rawServer: {
+                autoconnect: true,
+                minecraftVersion: '1.21.1'
+            }
+        }
+    })
+    const args = ['--username', 'Player']
+
+    builder._processAutoConnectArg(args)
+
+    assert.deepEqual(args, ['--username', 'Player'])
+})
+
 test('redacts account and Gatekeeper tokens from launch logs', () => {
     assert.deepEqual(
         ProcessBuilder.redactLaunchArguments([
@@ -134,6 +152,13 @@ test('1.19+ native extraction keeps only current OS and architecture', t => {
     assert.equal(fs.readFileSync(path.join(outputPath, 'liblwjgl.so'), 'utf8'), 'linux-native')
     assert.equal(fs.existsSync(path.join(outputPath, 'lwjgl.dll')), false)
     assert.equal(fs.existsSync(path.join(outputPath, 'META-INF', 'signature')), false)
+})
+
+test('Mojang macOS native classifiers match the osx runtime name', () => {
+    assert.equal(ProcessBuilder.isNativeLibraryCompatible('macos', 'arm64', 'osx', 'arm64'), true)
+    assert.equal(ProcessBuilder.isNativeLibraryCompatible('macos', 'x64', 'osx', 'arm64'), false)
+    assert.equal(ProcessBuilder.isNativeLibraryCompatible('macos', 'x64', 'osx', 'x86_64'), true)
+    assert.equal(ProcessBuilder.isNativeLibraryCompatible('windows', 'arm64', 'osx', 'arm64'), false)
 })
 
 test('module library resolution walks nested submodules and respects classpath false', () => {
